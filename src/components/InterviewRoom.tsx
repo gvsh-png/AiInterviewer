@@ -7,6 +7,7 @@ import {
   type ConversationMeta,
 } from "@/lib/personality";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
+import DerekAvatar from "@/components/DerekAvatar";
 
 const STORAGE_KEY = "derek-openrouter-key";
 const KEY_EVENT = "derek-key-change";
@@ -221,33 +222,37 @@ export default function InterviewRoom() {
 
       {!started ? (
         <section className="hero">
-          <p className="eyebrow">Game testing intake</p>
-          <h1 className="brand">DEREK</h1>
-          <p className="lede">
-            Senior QA Lead. Strict. Self-obsessed. Will open up about his
-            family — if you last long enough.
-          </p>
-          <div className="cta-row">
-            <button type="button" className="primary" onClick={beginInterview}>
-              Sit for the interview
-            </button>
+          <div className="hero-portrait" aria-hidden>
+            <DerekAvatar size="hero" />
           </div>
-          <p className="hint">
-            {sttOk
-              ? "Mic + voice reply ready in Chrome / Edge."
-              : "Speech recognition needs Chrome or Edge — typing still works."}
-            {!ttsOk ? " Text-to-speech unavailable in this browser." : ""}
-          </p>
+          <div className="hero-copy">
+            <p className="eyebrow">Game testing intake</p>
+            <h1 className="brand">DEREK</h1>
+            <p className="lede">
+              Senior QA Lead. Strict. Self-obsessed. Will open up about his
+              family — if you last long enough.
+            </p>
+            <div className="cta-row">
+              <button type="button" className="primary" onClick={beginInterview}>
+                Sit for the interview
+              </button>
+            </div>
+            <p className="hint">
+              {sttOk
+                ? "Mic + voice reply ready in Chrome / Edge."
+                : "Speech recognition needs Chrome or Edge — typing still works."}
+              {!ttsOk ? " Text-to-speech unavailable in this browser." : ""}
+            </p>
+          </div>
         </section>
       ) : (
         <section className="stage">
           <div className="derek-panel">
-            <div
-              className={`avatar ${speaking ? "talking" : ""} ${listening ? "hearing" : ""}`}
-            >
-              <span className="initial">D</span>
-              <span className="pulse" aria-hidden />
-            </div>
+            <DerekAvatar
+              size="lg"
+              speaking={speaking}
+              listening={listening}
+            />
             <div className="derek-meta">
               <h2>Derek Holloway</h2>
               <p>Senior QA Lead · Probe Labs</p>
@@ -258,22 +263,32 @@ export default function InterviewRoom() {
           <div className="transcript" ref={scrollRef}>
             {lines.map((line) => (
               <div key={line.id} className={`bubble ${line.role}`}>
-                <span className="who">
-                  {line.role === "derek" ? "Derek" : "You"}
-                </span>
-                <p>{line.text}</p>
+                {line.role === "derek" && (
+                  <DerekAvatar size="sm" speaking={false} className="bubble-avatar" />
+                )}
+                <div className="bubble-body">
+                  <span className="who">
+                    {line.role === "derek" ? "Derek" : "You"}
+                  </span>
+                  <p>{line.text}</p>
+                </div>
               </div>
             ))}
             {interim && (
               <div className="bubble you interim">
-                <span className="who">You</span>
-                <p>{interim}</p>
+                <div className="bubble-body">
+                  <span className="who">You</span>
+                  <p>{interim}</p>
+                </div>
               </div>
             )}
             {busy && (
               <div className="bubble derek thinking">
-                <span className="who">Derek</span>
-                <p>Judging you…</p>
+                <DerekAvatar size="sm" className="bubble-avatar" />
+                <div className="bubble-body">
+                  <span className="who">Derek</span>
+                  <p>Judging you…</p>
+                </div>
               </div>
             )}
           </div>

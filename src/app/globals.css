@@ -116,17 +116,57 @@ body {
   position: relative;
   z-index: 2;
   min-height: calc(100dvh - 5rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 2rem 1.5rem 3.5rem;
-  max-width: 720px;
+  display: grid;
+  align-items: end;
+  padding: 0;
   animation: rise-in 0.9s ease-out both;
 }
 
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+.hero-portrait {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.hero-portrait .avatar {
+  width: min(72vw, 640px);
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    black 28%,
+    black 100%
+  );
+}
+
+.hero-portrait .avatar-img {
+  object-position: center 18%;
+  filter: saturate(0.92) contrast(1.05);
+}
+
+.hero-portrait .pulse,
+.hero-portrait .speak-bars {
+  display: none;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  padding: 2rem 1.5rem 3.5rem;
+  max-width: 720px;
+  background: linear-gradient(
+    90deg,
+    rgba(13, 19, 15, 0.88) 0%,
+    rgba(13, 19, 15, 0.55) 70%,
+    transparent 100%
+  );
 }
 
 .eyebrow {
@@ -239,12 +279,48 @@ button {
   display: grid;
   place-items: center;
   border: 2px solid color-mix(in oklab, var(--sulfur) 45%, transparent);
+  flex-shrink: 0;
 }
 
-.avatar .initial {
-  font-family: var(--font-display), Georgia, serif;
-  font-size: 1.8rem;
-  color: var(--sulfur);
+.avatar picture,
+.avatar .avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.avatar picture {
+  overflow: hidden;
+  display: block;
+}
+
+.avatar.size-sm {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-width: 1px;
+}
+
+.avatar.size-md {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.avatar.size-lg {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.avatar.size-hero {
+  width: 100%;
+  height: 100%;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
 }
 
 .avatar .pulse {
@@ -253,6 +329,7 @@ button {
   border-radius: 50%;
   border: 1px solid transparent;
   opacity: 0;
+  pointer-events: none;
 }
 
 .avatar.talking .pulse {
@@ -260,13 +337,65 @@ button {
   animation: ring 1.2s ease-out infinite;
 }
 
+.avatar.talking {
+  animation: talk-bob 0.55s ease-in-out infinite;
+}
+
 .avatar.hearing {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--paper) 25%, transparent);
+}
+
+.speak-bars {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 14%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  z-index: 2;
+}
+
+.speak-bars::before,
+.speak-bars::after {
+  content: "";
+  width: 3px;
+  border-radius: 2px;
+  background: var(--sulfur);
+  animation: bar-bounce 0.7s ease-in-out infinite;
+}
+
+.speak-bars::before {
+  height: 55%;
+  animation-delay: 0s;
+}
+
+.speak-bars::after {
+  height: 90%;
+  animation-delay: 0.18s;
 }
 
 @keyframes ring {
   0% { transform: scale(0.92); opacity: 0.7; }
   100% { transform: scale(1.18); opacity: 0; }
+}
+
+@keyframes talk-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes bar-bounce {
+  0%, 100% { transform: scaleY(0.55); opacity: 0.7; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .derek-meta h2 {
@@ -302,6 +431,9 @@ button {
 .bubble {
   max-width: 92%;
   animation: rise-in 0.35s ease-out both;
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
 }
 
 .bubble.derek {
@@ -311,6 +443,15 @@ button {
 .bubble.you {
   align-self: flex-end;
   text-align: right;
+  justify-content: flex-end;
+}
+
+.bubble-avatar {
+  margin-top: 0.15rem;
+}
+
+.bubble-body {
+  min-width: 0;
 }
 
 .bubble .who {
@@ -474,7 +615,25 @@ button {
     min-height: 2.75rem;
   }
 
-  .hero {
-    justify-content: center;
+  .hero-portrait .avatar {
+    width: 100%;
+    mask-image: linear-gradient(
+      180deg,
+      transparent 0%,
+      black 18%,
+      black 62%,
+      transparent 100%
+    );
+    opacity: 0.55;
+  }
+
+  .hero-copy {
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(13, 19, 15, 0.82) 35%,
+      rgba(13, 19, 15, 0.95) 100%
+    );
+    max-width: none;
   }
 }
