@@ -1,28 +1,35 @@
 "use client";
 
-type DerekAvatarProps = {
-  size?: "sm" | "md" | "lg" | "hero";
+import type { Interviewer } from "@/lib/interviewers";
+
+type PersonaAvatarProps = {
+  interviewer: Interviewer;
+  size?: "sm" | "md" | "lg" | "hero" | "card";
   speaking?: boolean;
   listening?: boolean;
   className?: string;
 };
 
-export default function DerekAvatar({
+export default function PersonaAvatar({
+  interviewer,
   size = "md",
   speaking = false,
   listening = false,
   className = "",
-}: DerekAvatarProps) {
+}: PersonaAvatarProps) {
+  const src = interviewer.avatarWebp || interviewer.avatar;
   return (
     <div
       className={`avatar size-${size} ${speaking ? "talking" : ""} ${listening ? "hearing" : ""} ${className}`.trim()}
-      aria-label="Derek Holloway"
+      aria-label={interviewer.name}
     >
       <picture>
-        <source srcSet="/derek-avatar.webp" type="image/webp" />
+        {interviewer.avatarWebp ? (
+          <source srcSet={interviewer.avatarWebp} type="image/webp" />
+        ) : null}
         <img
-          src="/derek-avatar.png"
-          alt="Derek Holloway, Senior QA Lead"
+          src={src}
+          alt={`${interviewer.name}, ${interviewer.title}`}
           className="avatar-img"
           draggable={false}
         />

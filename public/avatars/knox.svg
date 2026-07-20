@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="768" height="768">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#2a2040"/>
+      <stop offset="100%" stop-color="#100e18"/>
+    </radialGradient>
+    <radialGradient id="skin" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c4a080"/>
+      <stop offset="100%" stop-color="#c4a080" stop-opacity="0.85"/>
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#bg)"/>
+  <ellipse cx="100" cy="210" rx="70" ry="40" fill="#ff4040" opacity="0.15"/>
+  <!-- neck -->
+  <path d="M78 145 L85 175 L115 175 L122 145 Z" fill="#c4a080" opacity="0.9"/>
+  <!-- shoulders -->
+  <path d="M20 200 C40 155, 70 150, 100 152 C130 150, 160 155, 180 200 Z" fill="#ff4040" opacity="0.35"/>
+  <path d="M30 200 C48 162, 75 156, 100 158 C125 156, 152 162, 170 200 Z" fill="#2a2040" opacity="0.9"/>
+  <!-- head -->
+  <ellipse cx="100" cy="100" rx="48" ry="56" fill="url(#skin)"/>
+  <!-- hair -->
+  <path d="M32 78 C28 32, 55 12, 100 16 C148 10, 175 35, 168 82 C150 42, 125 36, 100 38 C75 36, 48 45, 32 78 Z" fill="#1a1020"/>
+  <!-- eyes -->
+  <ellipse cx="78" cy="98" rx="6" ry="7" fill="#fff" opacity="0.9"/>
+  <ellipse cx="122" cy="98" rx="6" ry="7" fill="#fff" opacity="0.9"/>
+  <ellipse cx="79" cy="99" rx="3.2" ry="3.8" fill="#ff4040"/>
+  <ellipse cx="123" cy="99" rx="3.2" ry="3.8" fill="#ff4040"/>
+  <circle cx="80" cy="97.5" r="1.1" fill="#fff"/>
+  <circle cx="124" cy="97.5" r="1.1" fill="#fff"/>
+  <!-- brows -->
+  <path d="M68 88 Q78 84 88 88" stroke="#1a1020" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M112 88 Q122 84 132 88" stroke="#1a1020" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <!-- nose -->
+  <path d="M100 102 L96 118 Q100 121 104 118 Z" fill="#c4a080" stroke="#8a4038" stroke-width="0.6" opacity="0.7"/>
+  <!-- mouth -->
+  <path d="M86 130 Q100 138 114 130" stroke="#8a4038" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M88 125 Q100 132 112 125" stroke="#ff4040" stroke-width="2" fill="none" opacity="0.6"/>
+  <circle cx="100" cy="100" r="98" fill="none" stroke="#ff4040" stroke-width="2" opacity="0.25"/>
+</svg>

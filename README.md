@@ -1,15 +1,15 @@
-# DEREK — AI Game Testing Interviewer
+# PROBE — Twisted AI Job Interviewers
 
-Voice interview simulator with **Derek Holloway**, a strict (and deeply self-centered) Senior QA Lead at Probe Labs.
+Voice interview simulator with a roster of **twisted interviewers** — each with a different job, avatar, voice, color theme, and dangerous personality.
 
 ## Features
 
-- Password-gated site access (`SITE_PASSWORD`)
-- Speech-to-text + **natural deep male TTS** via OpenRouter (`onyx` voice)
-- Typed fallback
-- Personality arc: strict → family spill → enamored if you act like a therapist
-- Restart + Lock controls
-- OpenRouter LLM via server env (`OPENROUTER_API_KEY`)
+- **12 interviewers** on the home roster (job + person + avatar)
+- Unique **voices** and **color themes** per interviewer
+- Password gate (`SITE_PASSWORD`)
+- Speech-to-text + TTS via OpenRouter
+- Typewriter transcript synced to spoken chunks
+- Restart + Lock + back to roster
 
 ## Local run
 
@@ -20,38 +20,25 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you’ll hit `/login` when `SITE_PASSWORD` is set.
-
 ## Deploy on Vercel
 
-1. Import `gvsh-png/AiInterviewer` (or connect this repo) in [Vercel](https://vercel.com/new)
-2. Add environment variables:
-   - `OPENROUTER_API_KEY` — your OpenRouter key (powers chat **and** Derek’s voice)
-   - `SITE_PASSWORD` — the password people need to enter the site
-   - optional: `OPENROUTER_MODEL` (default `openai/gpt-4o-mini`)
-   - optional: `OPENROUTER_TTS_VOICE` (default `am_onyx` — deep male, fast via Kokoro)
+1. Import the repo in Vercel
+2. Set `OPENROUTER_API_KEY` and `SITE_PASSWORD`
 3. Deploy
 
-Or from the CLI (after `npx vercel login`):
+## Roster (twists)
 
-```bash
-npx vercel --prod
-```
-
-Then set the env vars in the Vercel project settings and redeploy.
-
-## Personality notes
-
-| Phase | When | Behavior |
+| Person | Job | Twist |
 | --- | --- | --- |
-| Strict | Early turns | Harsh QA grilling, self-centered asides |
-| Cracking | ~3+ answers | Starts derailing into personal stress |
-| Confessional | ~6+ answers | Family / marriage spill while still judging you |
-| Enamored | High therapy score | Softens if you listen / validate him |
-
-## Stack
-
-- Next.js App Router + TypeScript
-- OpenRouter Chat Completions
-- Browser Speech Recognition + Speech Synthesis
-- Cookie auth gate for private access
+| Derek Holloway | Game Testing | Narcissist family-spill QA lead |
+| Marlene Crowe | Corporate HR | Stalker who already researched you |
+| Ira Voss | Corporate Security | Paranoid chief who implies disappearances |
+| Celeste Moon | People Wellness | Cultish devotion recruiter |
+| Griffin Hale | Brand & Design | Idea thief / gaslighter |
+| Dr. Helen Pike | Biotech Research | Cold clinician, “imperfect specimens” |
+| June Pell | Customer Support | Weird oversharer, basement tickets |
+| Viktor Romanov | Private Equity | Hunter metaphors, predatory PE |
+| Ashley Venn | Social Media | Parasocial stalker growth lead |
+| Hector Blaine | Facilities & Ops | Lonely night-shift address creep |
+| Vera Quill | Legal Compliance | Gaslighting sadist |
+| Knox Delgado | Esports Coaching | Rage coach, stage “accidents” |

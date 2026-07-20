@@ -195,11 +195,15 @@ export function splitSpeakChunks(text: string): string[] {
   return chunks;
 }
 
-async function fetchTtsBlob(text: string, signal?: AbortSignal): Promise<Blob> {
+async function fetchTtsBlob(
+  text: string,
+  signal?: AbortSignal,
+  interviewerId?: string
+): Promise<Blob> {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, interviewerId }),
     signal,
   });
   if (!res.ok) throw new Error(`TTS ${res.status}`);
@@ -273,6 +277,7 @@ export type SpeakChunkProgress = {
 };
 
 export type SpeakOptions = {
+  interviewerId?: string;
   onChunkStart?: (progress: SpeakChunkProgress) => void;
   onComplete?: () => void;
 };
@@ -345,16 +350,17 @@ export function useSpeechSynthesis() {
     [browserSupported, stopAudio, voices]
   );
 
-  const prefetch = useCallback(async (text: string) => {
+  const prefetch = useCallback(async (text: string, interviewerId?: string) => {
     const clean = text.trim();
     if (!clean) return;
     try {
       const chunks = splitSpeakChunks(clean);
       await Promise.all(
         chunks.map(async (chunk) => {
-          if (cacheRef.current.has(chunk)) return;
-          const blob = await fetchTtsBlob(chunk);
-          cacheRef.current.set(chunk, blob);
+          const key = `${interviewerId || "default"}:${chunk}`;
+          if (cacheRef.current.has(key)) return;
+          const blob = await fetchTtsBlob(chunk, undefined, interviewerId);
+          cacheRef.current.set(key, blob);
         })
       );
     } catch {
@@ -371,6 +377,7 @@ export function useSpeechSynthesis() {
       abortRef.current?.abort();
       const abort = new AbortController();
       abortRef.current = abort;
+      const interviewerId = options?.interviewerId;
 
       stopBrowser();
       stopAudio();
@@ -380,12 +387,15 @@ export function useSpeechSynthesis() {
 
       try {
         const blobPromises = chunks.map((chunk) => {
-          const cached = cacheRef.current.get(chunk);
+          const key = `${interviewerId || "default"}:${chunk}`;
+          const cached = cacheRef.current.get(key);
           if (cached) return Promise.resolve(cached);
-          return fetchTtsBlob(chunk, abort.signal).then((blob) => {
-            cacheRef.current.set(chunk, blob);
-            return blob;
-          });
+          return fetchTtsBlob(chunk, abort.signal, interviewerId).then(
+            (blob) => {
+              cacheRef.current.set(key, blob);
+              return blob;
+            }
+          );
         });
 
         for (let i = 0; i < chunks.length; i += 1) {
@@ -397,7 +407,6 @@ export function useSpeechSynthesis() {
           const chunk = chunks[i]!;
           const revealedText = chunks.slice(0, i + 1).join(" ");
 
-          // Estimate duration from size before metadata loads (fallback).
           const estimatedMs = Math.max(900, chunk.split(/\s+/).length * 320);
           const loaded = await loadAudioBlob(blob, audioRef);
           if (generation !== generationRef.current) return;
@@ -452,8 +461,8 @@ export function useSpeechSynthesis() {
     speak: (text: string, options?: SpeakOptions) => {
       void speak(text, options);
     },
-    prefetch: (text: string) => {
-      void prefetch(text);
+    prefetch: (text: string, interviewerId?: string) => {
+      void prefetch(text, interviewerId);
     },
     cancel,
   };

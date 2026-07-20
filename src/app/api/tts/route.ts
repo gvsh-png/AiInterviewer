@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getInterviewer } from "@/lib/interviewers";
 
 export const runtime = "nodejs";
-
-const DEREK_VOICE_INSTRUCTIONS = [
-  "Speak as a middle-aged American man.",
-  "Deep, grounded, natural male voice — slightly gravelly, never high or thin.",
-  "Conversational and human, not robotic or announcer-like.",
-  "Strict, impatient Senior QA lead energy: dry, clipped, a little world-weary.",
-  "Keep a steady low register. No smile in the voice unless the line is sarcastic.",
-].join(" ");
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,34 +13,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json()) as { text?: string };
+    const body = (await req.json()) as {
+      text?: string;
+      interviewerId?: string;
+      model?: string;
+      voice?: string;
+      speed?: number;
+    };
     const text = String(body.text || "").trim();
     if (!text) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
 
-    // Fast natural male defaults (Kokoro · American Onyx).
-    const model = process.env.OPENROUTER_TTS_MODEL || "hexgrad/kokoro-82m";
-    const voice = process.env.OPENROUTER_TTS_VOICE || "am_onyx";
+    const interviewer = getInterviewer(body.interviewerId || "derek");
+    const model =
+      body.model ||
+      interviewer?.voice.model ||
+      process.env.OPENROUTER_TTS_MODEL ||
+      "hexgrad/kokoro-82m";
+    const voice =
+      body.voice ||
+      interviewer?.voice.voice ||
+      process.env.OPENROUTER_TTS_VOICE ||
+      "am_onyx";
+    const speed =
+      body.speed ??
+      interviewer?.voice.speed ??
+      1;
 
     const payload: Record<string, unknown> = {
       model,
       input: text.slice(0, 4000),
       voice,
       response_format: "mp3",
-      speed: 1.0,
+      speed,
     };
-
-    if (/openai\//i.test(model)) {
-      payload.provider = {
-        options: {
-          openai: {
-            instructions: DEREK_VOICE_INSTRUCTIONS,
-          },
-        },
-      };
-      payload.speed = 0.95;
-    }
 
     const upstream = await fetch("https://openrouter.ai/api/v1/audio/speech", {
       method: "POST",
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "HTTP-Referer":
           process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
-        "X-Title": process.env.OPENROUTER_SITE_NAME || "Derek Interviewer",
+        "X-Title": process.env.OPENROUTER_SITE_NAME || "Probe Interviewers",
       },
       body: JSON.stringify(payload),
     });
