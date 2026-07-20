@@ -4,38 +4,40 @@ Voice interview simulator with **Derek Holloway**, a strict (and deeply self-cen
 
 ## Features
 
-- **Speech-to-text** — talk into the mic (Chrome / Edge Web Speech API)
-- **Text-to-speech** — Derek speaks replies aloud
-- **Typed fallback** — type if mic isn't available
-- **Personality arc** — starts strict → cracks → spills family problems → falls for you if you act like a therapist
-- **Restart** — reset the interview anytime
-- **OpenRouter** — LLM via OpenRouter API
+- Password-gated site access (`SITE_PASSWORD`)
+- Speech-to-text + text-to-speech (Chrome / Edge)
+- Typed fallback
+- Personality arc: strict → family spill → enamored if you act like a therapist
+- Restart + Lock controls
+- OpenRouter LLM via server env (`OPENROUTER_API_KEY`)
 
-## Quick start
+## Local run
 
 ```bash
 npm install
 cp .env.example .env.local
-# put your OpenRouter key in .env.local as OPENROUTER_API_KEY=...
+# set OPENROUTER_API_KEY and SITE_PASSWORD
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) — you’ll hit `/login` when `SITE_PASSWORD` is set.
 
-You can also click **Key** in the UI and paste an OpenRouter key (stored in `localStorage` for local demos).
+## Deploy on Vercel
 
-## Deploy
+1. Import `gvsh-png/AiInterviewer` (or connect this repo) in [Vercel](https://vercel.com/new)
+2. Add environment variables:
+   - `OPENROUTER_API_KEY` — your OpenRouter key
+   - `SITE_PASSWORD` — the password people need to enter the site
+   - optional: `OPENROUTER_MODEL` (default `openai/gpt-4o-mini`)
+3. Deploy
 
-Works on any Node host that can run Next.js (Vercel, Railway, Fly, etc.):
-
-1. Set `OPENROUTER_API_KEY` in the host environment
-2. Optionally set `OPENROUTER_MODEL` (default `openai/gpt-4o-mini`)
-3. `npm run build && npm start`
+Or from the CLI (after `npx vercel login`):
 
 ```bash
-# Vercel example
-npx vercel
+npx vercel --prod
 ```
+
+Then set the env vars in the Vercel project settings and redeploy.
 
 ## Personality notes
 
@@ -51,3 +53,4 @@ npx vercel
 - Next.js App Router + TypeScript
 - OpenRouter Chat Completions
 - Browser Speech Recognition + Speech Synthesis
+- Cookie auth gate for private access

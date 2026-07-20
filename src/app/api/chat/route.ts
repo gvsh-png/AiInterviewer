@@ -12,21 +12,19 @@ export const runtime = "nodejs";
 type RequestBody = {
   messages: ChatMessage[];
   meta?: Partial<ConversationMeta>;
-  apiKey?: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RequestBody;
     const messages = body.messages ?? [];
-    const clientKey = body.apiKey?.trim();
-    const apiKey = process.env.OPENROUTER_API_KEY || clientKey;
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
         {
           error:
-            "Missing OpenRouter API key. Set OPENROUTER_API_KEY or paste a key in Settings.",
+            "Missing OPENROUTER_API_KEY. Set it in Vercel project environment variables.",
         },
         { status: 401 }
       );

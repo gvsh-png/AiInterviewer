@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   OPENING_LINE,
   type ChatMessage,
@@ -8,9 +9,6 @@ import {
 } from "@/lib/personality";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
 import DerekAvatar from "@/components/DerekAvatar";
-
-const STORAGE_KEY = "derek-openrouter-key";
-const KEY_EVENT = "derek-key-change";
 
 type Line = {
   id: string;
@@ -22,32 +20,8 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function readStoredKey() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(STORAGE_KEY) || "";
-}
-
-function subscribeKey(onStoreChange: () => void) {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onStoreChange();
-  };
-  const onLocal = () => onStoreChange();
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(KEY_EVENT, onLocal);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(KEY_EVENT, onLocal);
-  };
-}
-
-function writeStoredKey(value: string) {
-  if (value) localStorage.setItem(STORAGE_KEY, value);
-  else localStorage.removeItem(STORAGE_KEY);
-  window.dispatchEvent(new Event(KEY_EVENT));
-}
-
 export default function InterviewRoom() {
-  const apiKey = useSyncExternalStore(subscribeKey, readStoredKey, () => "");
+  const router = useRouter();
   const [started, setStarted] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -59,8 +33,6 @@ export default function InterviewRoom() {
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [keyDraft, setKeyDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoListenRef = useRef(false);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -116,7 +88,6 @@ export default function InterviewRoom() {
           body: JSON.stringify({
             messages: nextMessages,
             meta,
-            apiKey: apiKey || undefined,
           }),
         });
         const data = await res.json();
@@ -138,7 +109,7 @@ export default function InterviewRoom() {
         setBusy(false);
       }
     },
-    [apiKey, busy, cancel, lines, messages, meta, speak, stopListen]
+    [busy, cancel, lines, messages, meta, speak, stopListen]
   );
 
   useEffect(() => {
@@ -152,16 +123,6 @@ export default function InterviewRoom() {
       return () => window.clearTimeout(t);
     }
   }, [speaking, started, busy, sttOk, startListen]);
-
-  const saveKey = () => {
-    writeStoredKey(keyDraft.trim());
-    setShowSettings(false);
-  };
-
-  const openSettings = () => {
-    setKeyDraft(apiKey);
-    setShowSettings(true);
-  };
 
   const beginInterview = () => {
     cancel();
@@ -189,6 +150,14 @@ export default function InterviewRoom() {
     autoListenRef.current = false;
   };
 
+  const logout = async () => {
+    cancel();
+    stopListen();
+    await fetch("/api/auth", { method: "DELETE" });
+    router.replace("/login");
+    router.refresh();
+  };
+
   const phaseLabel: Record<ConversationMeta["phase"], string> = {
     strict: "Strict hire mode",
     cracking: "Cracking",
@@ -205,12 +174,8 @@ export default function InterviewRoom() {
       <header className="topbar">
         <p className="mark">PROBE</p>
         <div className="top-actions">
-          <button
-            type="button"
-            className="ghost"
-            onClick={openSettings}
-          >
-            Key
+          <button type="button" className="ghost" onClick={() => void logout()}>
+            Lock
           </button>
           {started && (
             <button type="button" className="ghost danger" onClick={restart}>
@@ -264,7 +229,11 @@ export default function InterviewRoom() {
             {lines.map((line) => (
               <div key={line.id} className={`bubble ${line.role}`}>
                 {line.role === "derek" && (
-                  <DerekAvatar size="sm" speaking={false} className="bubble-avatar" />
+                  <DerekAvatar
+                    size="sm"
+                    speaking={false}
+                    className="bubble-avatar"
+                  />
                 )}
                 <div className="bubble-body">
                   <span className="who">
@@ -330,37 +299,6 @@ export default function InterviewRoom() {
             </div>
           </div>
         </section>
-      )}
-
-      {showSettings && (
-        <div className="sheet" role="dialog" aria-label="API key settings">
-          <div className="sheet-card">
-            <h3>OpenRouter key</h3>
-            <p>
-              Paste your key for local use, or set{" "}
-              <code>OPENROUTER_API_KEY</code> on the server.
-            </p>
-            <input
-              type="password"
-              value={keyDraft}
-              onChange={(e) => setKeyDraft(e.target.value)}
-              placeholder="sk-or-…"
-              autoComplete="off"
-            />
-            <div className="sheet-actions">
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => setShowSettings(false)}
-              >
-                Cancel
-              </button>
-              <button type="button" className="primary" onClick={saveKey}>
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
