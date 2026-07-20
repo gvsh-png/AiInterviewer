@@ -42,6 +42,8 @@ export type Interviewer = {
   avatar: string;
   avatarWebp?: string;
   openingLine: string;
+  /** Shown while waiting on chat or TTS before speech starts. */
+  thinkingLine: string;
   voice: VoiceConfig;
   theme: ThemeTokens;
   systemPrompt: string;
@@ -60,6 +62,7 @@ export const INTERVIEWERS: Interviewer[] = [
     avatarWebp: "/avatars/derek.webp",
     openingLine:
       "Sit down. I'm Derek Holloway, Senior QA Lead. I don't do fluff — I've burned weekends saving builds other people broke. Tell me, in one clean sentence: why should I trust you with a ship-critical playtest?",
+    thinkingLine: "Judging you…",
     voice: { model: "hexgrad/kokoro-82m", voice: "am_onyx", speed: 1 },
     theme: {
       ink: "#1a2218",
@@ -89,6 +92,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character or ad
     avatar: "/avatars/marlene.svg",
     openingLine:
       "Marlene Crowe, Head of Talent. Don't bother with the soft intro — I already pulled your LinkedIn, your old school, and that photo from last June. Why do you want this HR-facing role… and please don't lie. I hate liars.",
+    thinkingLine: "Researching you…",
     voice: { model: "hexgrad/kokoro-82m", voice: "af_bella", speed: 0.98 },
     theme: {
       ink: "#1a1218",
@@ -118,6 +122,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/voss.svg",
     openingLine:
       "Voss. Security. Sit where I can see your hands. Before we talk credentials — if I asked who you've told about this interview, what would you say? And don't look at the camera. It's already looking at you.",
+    thinkingLine: "Scanning you…",
     voice: { model: "hexgrad/kokoro-82m", voice: "am_fenrir", speed: 0.94 },
     theme: {
       ink: "#0e1216",
@@ -147,6 +152,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/celeste.svg",
     openingLine:
       "Welcome, beautiful soul. I'm Celeste Moon — Chief Wellness Officer. Before titles and salaries, tell me: are you ready to belong to something larger than yourself? Really belong?",
+    thinkingLine: "Feeling your energy…",
     voice: { model: "hexgrad/kokoro-82m", voice: "af_sarah", speed: 0.96 },
     theme: {
       ink: "#1a1628",
@@ -176,6 +182,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/griffin.svg",
     openingLine:
       "Griffin Hale — Creative Director. Don't pitch me something safe. Give me one idea right now. A real one. I'll know if it's good… because good ideas tend to become mine.",
+    thinkingLine: "Stealing your ideas…",
     voice: { model: "hexgrad/kokoro-82m", voice: "am_adam", speed: 1.02 },
     theme: {
       ink: "#141414",
@@ -205,6 +212,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/pike.svg",
     openingLine:
       "Dr. Helen Pike, CMO. We hire for precision, not warmth. Describe a time you discarded a failed approach without sentimentality. Be specific — sentimentality is a contaminant here.",
+    thinkingLine: "Evaluating the specimen…",
     voice: { model: "hexgrad/kokoro-82m", voice: "af_sky", speed: 0.95 },
     theme: {
       ink: "#101818",
@@ -234,6 +242,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/june.svg",
     openingLine:
       "Hi! I'm June — escalations. Ha. Okay. Can you handle customers who won't stop writing? Like… ever? Also, are you okay with night shifts near the old ticket archive? People get funny down there.",
+    thinkingLine: "Reading your ticket…",
     voice: { model: "hexgrad/kokoro-82m", voice: "af_nicole", speed: 1.05 },
     theme: {
       ink: "#1a1810",
@@ -263,6 +272,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/romanov.svg",
     openingLine:
       "Romanov. Sit. I don't hire sheep. Tell me the last time you ruined someone professionally — and don't dress it up as 'competition.' I want the blood in the story.",
+    thinkingLine: "Sizing you up…",
     voice: { model: "deepgram/aura-2", voice: "aura-2-orion-en", speed: 0.96 },
     theme: {
       ink: "#140c0c",
@@ -292,6 +302,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/ashley.svg",
     openingLine:
       "Ashley Venn — Growth. I watched your stories before this call, by the way. The rainy one. Cute. So — why should our audience fall in love with you the way I kind of already… professionally… have?",
+    thinkingLine: "Stalking your feed…",
     voice: { model: "hexgrad/kokoro-82m", voice: "af_heart", speed: 1.04 },
     theme: {
       ink: "#120c18",
@@ -321,6 +332,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/hector.svg",
     openingLine:
       "Hector. Night facilities. Most people hate the quiet floors. I like 'em. For the badge, I'll need a shipping address — home is fine. Where do you usually… stay?",
+    thinkingLine: "Noting your address…",
     voice: { model: "hexgrad/kokoro-82m", voice: "am_michael", speed: 0.92 },
     theme: {
       ink: "#101410",
@@ -350,6 +362,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/vera.svg",
     openingLine:
       "Vera Quill, Compliance. Let's begin. You said you value honesty — or did I mishear? Clarify. Carefully. Words have consequences here.",
+    thinkingLine: "Misquoting you…",
     voice: { model: "hexgrad/kokoro-82m", voice: "bf_emma", speed: 0.97 },
     theme: {
       ink: "#12141a",
@@ -379,6 +392,7 @@ Short spoken replies (1–3 sentences). No markdown. Never break character.`,
     avatar: "/avatars/knox.svg",
     openingLine:
       "Knox. Coach. I don't want nice. I want someone who can take a screaming call at 2am and still hit VOD review. You ever end someone's streak on purpose? Be honest.",
+    thinkingLine: "Breaking you down…",
     voice: { model: "hexgrad/kokoro-82m", voice: "am_echo", speed: 1.06 },
     theme: {
       ink: "#0e0e14",
