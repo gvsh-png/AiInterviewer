@@ -206,27 +206,76 @@ async function fetchTtsBlob(text: string, signal?: AbortSignal): Promise<Blob> {
   return res.blob();
 }
 
-function playAudioBlob(
+function loadAudioBlob(
   blob: Blob,
   audioRef: { current: HTMLAudioElement | null }
-): Promise<void> {
+): Promise<{ durationMs: number; play: () => Promise<void> }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = url;
     audioRef.current = audio;
 
-    const finish = (err?: Error) => {
+    const cleanup = () => {
       URL.revokeObjectURL(url);
       if (audioRef.current === audio) audioRef.current = null;
-      if (err) reject(err);
-      else resolve();
     };
 
-    audio.onended = () => finish();
-    audio.onerror = () => finish(new Error("audio play failed"));
-    void audio.play().catch((err) => finish(err instanceof Error ? err : new Error("play failed")));
+    const fail = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+
+    const ready = () => {
+      const durationMs =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration * 1000
+          : 0;
+
+      resolve({
+        durationMs,
+        play: () =>
+          new Promise<void>((endResolve, endReject) => {
+            audio.onended = () => {
+              cleanup();
+              endResolve();
+            };
+            audio.onerror = () => {
+              cleanup();
+              endReject(new Error("audio play failed"));
+            };
+            void audio.play().catch((err) => {
+              cleanup();
+              endReject(err instanceof Error ? err : new Error("play failed"));
+            });
+          }),
+      });
+    };
+
+    if (audio.readyState >= 1) ready();
+    else {
+      audio.onloadedmetadata = ready;
+      audio.onerror = () => fail(new Error("audio load failed"));
+    }
   });
 }
+
+export type SpeakChunkProgress = {
+  index: number;
+  total: number;
+  chunk: string;
+  /** All text through the current chunk (settled + active). */
+  revealedText: string;
+  /** Previous chunks only (fully spoken). */
+  settledText: string;
+  durationMs: number;
+};
+
+export type SpeakOptions = {
+  onChunkStart?: (progress: SpeakChunkProgress) => void;
+  onComplete?: () => void;
+};
 
 export function useSpeechSynthesis() {
   const browserSupported = useSyncExternalStore(
@@ -314,7 +363,7 @@ export function useSpeechSynthesis() {
   }, []);
 
   const speak = useCallback(
-    async (text: string) => {
+    async (text: string, options?: SpeakOptions) => {
       const clean = text.trim();
       if (!clean) return;
 
@@ -330,7 +379,6 @@ export function useSpeechSynthesis() {
       const chunks = splitSpeakChunks(clean);
 
       try {
-        // Start every chunk fetch immediately; play as each becomes ready in order.
         const blobPromises = chunks.map((chunk) => {
           const cached = cacheRef.current.get(chunk);
           if (cached) return Promise.resolve(cached);
@@ -344,11 +392,31 @@ export function useSpeechSynthesis() {
           if (generation !== generationRef.current) return;
           const blob = await blobPromises[i]!;
           if (generation !== generationRef.current) return;
-          await playAudioBlob(blob, audioRef);
+
+          const settledText = chunks.slice(0, i).join(" ");
+          const chunk = chunks[i]!;
+          const revealedText = chunks.slice(0, i + 1).join(" ");
+
+          // Estimate duration from size before metadata loads (fallback).
+          const estimatedMs = Math.max(900, chunk.split(/\s+/).length * 320);
+          const loaded = await loadAudioBlob(blob, audioRef);
+          if (generation !== generationRef.current) return;
+
+          options?.onChunkStart?.({
+            index: i,
+            total: chunks.length,
+            chunk,
+            settledText,
+            revealedText,
+            durationMs: loaded.durationMs || estimatedMs,
+          });
+
+          await loaded.play();
         }
 
         if (generation === generationRef.current) {
           setSpeaking(false);
+          options?.onComplete?.();
         }
       } catch {
         if (generation !== generationRef.current) return;
@@ -356,6 +424,14 @@ export function useSpeechSynthesis() {
           setSpeaking(false);
           return;
         }
+        options?.onChunkStart?.({
+          index: 0,
+          total: 1,
+          chunk: clean,
+          settledText: "",
+          revealedText: clean,
+          durationMs: Math.max(1200, clean.split(/\s+/).length * 280),
+        });
         speakBrowser(clean);
       }
     },
@@ -373,8 +449,8 @@ export function useSpeechSynthesis() {
   return {
     supported: true,
     speaking,
-    speak: (text: string) => {
-      void speak(text);
+    speak: (text: string, options?: SpeakOptions) => {
+      void speak(text, options);
     },
     prefetch: (text: string) => {
       void prefetch(text);

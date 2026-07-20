@@ -9,11 +9,21 @@ import {
 } from "@/lib/personality";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
 import DerekAvatar from "@/components/DerekAvatar";
+import DerekSpeechText from "@/components/DerekSpeechText";
 
 type Line = {
   id: string;
   role: "derek" | "you";
   text: string;
+};
+
+type SpeechReveal = {
+  lineId: string;
+  fullText: string;
+  settled: string;
+  activeChunk: string;
+  durationMs: number;
+  complete: boolean;
 };
 
 function uid() {
@@ -33,6 +43,7 @@ export default function InterviewRoom() {
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [speechReveal, setSpeechReveal] = useState<SpeechReveal | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoListenRef = useRef(false);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -77,8 +88,47 @@ export default function InterviewRoom() {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [lines, interim, busy]);
+  }, [lines, interim, busy, speechReveal]);
 
+  const startDerekSpeech = useCallback(
+    (lineId: string, reply: string) => {
+      setSpeechReveal({
+        lineId,
+        fullText: reply,
+        settled: "",
+        activeChunk: "",
+        durationMs: 0,
+        complete: false,
+      });
+      autoListenRef.current = true;
+      speak(reply, {
+        onChunkStart: (progress) => {
+          setSpeechReveal((prev) => {
+            if (!prev || prev.lineId !== lineId) return prev;
+            return {
+              ...prev,
+              settled: progress.settledText,
+              activeChunk: progress.chunk,
+              durationMs: progress.durationMs,
+              complete: false,
+            };
+          });
+        },
+        onComplete: () => {
+          setSpeechReveal((prev) => {
+            if (!prev || prev.lineId !== lineId) return prev;
+            return {
+              ...prev,
+              settled: reply,
+              activeChunk: "",
+              complete: true,
+            };
+          });
+        },
+      });
+    },
+    [speak]
+  );
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
@@ -117,12 +167,12 @@ export default function InterviewRoom() {
 
         const reply = String(data.reply || "");
         const nextMeta = data.meta as ConversationMeta;
+        const derekId = uid();
         setMeta(nextMeta);
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
-        setLines([...nextLines, { id: uid(), role: "derek", text: reply }]);
-        autoListenRef.current = true;
+        setLines([...nextLines, { id: derekId, role: "derek", text: reply }]);
         // Start TTS before clearing busy so input stays locked across the handoff.
-        speak(reply);
+        startDerekSpeech(derekId, reply);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something broke";
         setError(message);
@@ -130,7 +180,7 @@ export default function InterviewRoom() {
         setBusy(false);
       }
     },
-    [busy, speaking, lines, messages, meta, speak, stopListen]
+    [busy, speaking, lines, messages, meta, startDerekSpeech, stopListen]
   );
 
   useEffect(() => {
@@ -156,12 +206,12 @@ export default function InterviewRoom() {
     stopListen();
     setError(null);
     setStarted(true);
-    setLines([{ id: uid(), role: "derek", text: OPENING_LINE }]);
+    const derekId = uid();
+    setLines([{ id: derekId, role: "derek", text: OPENING_LINE }]);
     setMessages([{ role: "assistant", content: OPENING_LINE }]);
     setMeta({ turnCount: 0, therapyScore: 0, phase: "strict" });
     setTyped("");
-    autoListenRef.current = true;
-    speak(OPENING_LINE);
+    startDerekSpeech(derekId, OPENING_LINE);
   };
 
   const restart = () => {
@@ -174,6 +224,7 @@ export default function InterviewRoom() {
     setMeta({ turnCount: 0, therapyScore: 0, phase: "strict" });
     setTyped("");
     setError(null);
+    setSpeechReveal(null);
     autoListenRef.current = false;
   };
 
@@ -191,6 +242,14 @@ export default function InterviewRoom() {
     confessional: "Family spill",
     enamored: "Attached",
   };
+
+  const isLineRevealing = (lineId: string) =>
+    Boolean(
+      speechReveal &&
+        speechReveal.lineId === lineId &&
+        !speechReveal.complete &&
+        speaking
+    );
 
   return (
     <div className="room">
@@ -266,7 +325,17 @@ export default function InterviewRoom() {
                   <span className="who">
                     {line.role === "derek" ? "Derek" : "You"}
                   </span>
-                  <p>{line.text}</p>
+                  {line.role === "derek" && isLineRevealing(line.id) && speechReveal ? (
+                    <DerekSpeechText
+                      text={speechReveal.fullText}
+                      settled={speechReveal.settled}
+                      activeChunk={speechReveal.activeChunk}
+                      durationMs={speechReveal.durationMs}
+                      complete={false}
+                    />
+                  ) : (
+                    <p className="speech-text">{line.text}</p>
+                  )}
                 </div>
               </div>
             ))}

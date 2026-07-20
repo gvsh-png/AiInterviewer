@@ -463,13 +463,15 @@ button {
   margin-bottom: 0.2rem;
 }
 
-.bubble p {
+.bubble p,
+.speech-text {
   margin: 0;
   line-height: 1.5;
   font-size: 1.02rem;
 }
 
-.bubble.derek p {
+.bubble.derek p,
+.bubble.derek .speech-text {
   color: var(--paper);
 }
 
@@ -481,6 +483,54 @@ button {
 .bubble.thinking p {
   opacity: 0.55;
   font-style: italic;
+}
+
+.speech-text.revealing {
+  min-height: 1.5em;
+}
+
+.speech-settled {
+  color: var(--paper);
+}
+
+.speech-word {
+  display: inline;
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateY(0.35em);
+  animation: word-pop 0.28s ease both;
+}
+
+.speech-caret {
+  display: inline-block;
+  width: 0.45em;
+  height: 1em;
+  margin-left: 0.1em;
+  vertical-align: -0.15em;
+  background: color-mix(in oklab, var(--sulfur) 75%, transparent);
+  animation: caret-blink 0.9s steps(1) infinite;
+}
+
+@keyframes word-pop {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(0.35em);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes caret-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes caret-fade-out {
+  to { opacity: 0; width: 0; margin: 0; }
 }
 
 .composer {
