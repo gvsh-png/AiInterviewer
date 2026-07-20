@@ -290,6 +290,7 @@ export function useSpeechSynthesis() {
     () => false
   );
   const [speaking, setSpeaking] = useState(false);
+  const [preparingSpeech, setPreparingSpeech] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -382,6 +383,7 @@ export function useSpeechSynthesis() {
 
       stopBrowser();
       stopAudio();
+      setPreparingSpeech(true);
       setSpeaking(true);
 
       const chunks = splitSpeakChunks(clean);
@@ -412,6 +414,7 @@ export function useSpeechSynthesis() {
           const loaded = await loadAudioBlob(blob, audioRef);
           if (generation !== generationRef.current) return;
 
+          setPreparingSpeech(false);
           options?.onChunkStart?.({
             index: i,
             total: chunks.length,
@@ -431,9 +434,11 @@ export function useSpeechSynthesis() {
       } catch {
         if (generation !== generationRef.current) return;
         if (abort.signal.aborted) {
+          setPreparingSpeech(false);
           setSpeaking(false);
           return;
         }
+        setPreparingSpeech(false);
         options?.onChunkStart?.({
           index: 0,
           total: 1,
@@ -453,12 +458,14 @@ export function useSpeechSynthesis() {
     abortRef.current?.abort();
     stopBrowser();
     stopAudio();
+    setPreparingSpeech(false);
     setSpeaking(false);
   }, [stopAudio, stopBrowser]);
 
   return {
     supported: true,
     speaking,
+    preparingSpeech,
     speak: (text: string, options?: SpeakOptions) => {
       void speak(text, options);
     },

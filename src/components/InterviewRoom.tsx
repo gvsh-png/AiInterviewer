@@ -53,10 +53,11 @@ export default function InterviewRoom({
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
 
-  const { supported: ttsOk, speaking, speak, prefetch, cancel } =
+  const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
   const inputLocked = busy || speaking;
+  const showThinking = busy || preparingSpeech;
 
   useEffect(() => {
     lockedRef.current = inputLocked;
@@ -88,7 +89,7 @@ export default function InterviewRoom({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [lines, interim, busy, speechReveal]);
+  }, [lines, interim, showThinking, speechReveal]);
 
   const startPersonaSpeech = useCallback(
     (lineId: string, reply: string) => {
@@ -268,6 +269,8 @@ export default function InterviewRoom({
     );
 
   const firstName = interviewer.name.split(" ")[0] || interviewer.name;
+  const pendingSpeechLineId =
+    preparingSpeech && speechReveal ? speechReveal.lineId : null;
 
   return (
     <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
@@ -336,7 +339,9 @@ export default function InterviewRoom({
           </div>
 
           <div className="transcript" ref={scrollRef}>
-            {lines.map((line) => (
+            {lines
+              .filter((line) => line.id !== pendingSpeechLineId)
+              .map((line) => (
               <div key={line.id} className={`bubble ${line.role === "them" ? "derek" : "you"}`}>
                 {line.role === "them" && (
                   <PersonaAvatar
@@ -376,7 +381,7 @@ export default function InterviewRoom({
                 </div>
               </div>
             )}
-            {busy && (
+            {showThinking && (
               <div className="bubble derek thinking">
                 <PersonaAvatar
                   interviewer={interviewer}
@@ -385,7 +390,7 @@ export default function InterviewRoom({
                 />
                 <div className="bubble-body">
                   <span className="who">{firstName}</span>
-                  <p>Judging you…</p>
+                  <p>{interviewer.thinkingLine}</p>
                 </div>
               </div>
             )}
@@ -403,7 +408,7 @@ export default function InterviewRoom({
               >
                 {listening
                   ? "Listening"
-                  : busy
+                  : showThinking
                     ? "Wait…"
                     : speaking
                       ? `${firstName} talking…`
@@ -421,8 +426,8 @@ export default function InterviewRoom({
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
                   placeholder={
-                    busy
-                      ? `${firstName} is thinking…`
+                    showThinking
+                      ? interviewer.thinkingLine
                       : speaking
                         ? `Wait until ${firstName} finishes…`
                         : "Or type your answer…"
