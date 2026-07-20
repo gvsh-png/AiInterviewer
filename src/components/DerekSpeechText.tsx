@@ -15,10 +15,6 @@ type DerekSpeechTextProps = {
   complete?: boolean;
 };
 
-function tokenize(chunk: string): string[] {
-  return chunk.match(/\S+\s*/g) || (chunk ? [chunk] : []);
-}
-
 export default function DerekSpeechText({
   text,
   settled = "",
@@ -26,11 +22,12 @@ export default function DerekSpeechText({
   durationMs = 0,
   complete = false,
 }: DerekSpeechTextProps) {
-  const words = useMemo(() => tokenize(activeChunk), [activeChunk]);
+  const chars = useMemo(() => Array.from(activeChunk), [activeChunk]);
   const stepMs = useMemo(() => {
-    if (!words.length) return 0;
-    return Math.max(40, (Math.max(durationMs, 600) * 0.92) / words.length);
-  }, [durationMs, words.length]);
+    if (!chars.length) return 0;
+    // Type slightly ahead of audio end so the line finishes with his voice.
+    return Math.max(18, (Math.max(durationMs, 500) * 0.9) / chars.length);
+  }, [durationMs, chars.length]);
 
   if (complete) {
     return <p className="speech-text">{text}</p>;
@@ -47,25 +44,22 @@ export default function DerekSpeechText({
   return (
     <p className="speech-text revealing" aria-label={text}>
       {settled ? <span className="speech-settled">{settled} </span> : null}
-      {words.map((word, index) => (
+      <span className="speech-typewriter">
+        {chars.map((char, index) => (
+          <span
+            key={`${activeChunk}-${index}`}
+            className="speech-char"
+            style={{ animationDelay: `${index * stepMs}ms` }}
+          >
+            {char === " " ? "\u00a0" : char}
+          </span>
+        ))}
         <span
-          key={`${activeChunk}-${index}-${word}`}
-          className="speech-word"
-          style={{ animationDelay: `${index * stepMs}ms` }}
-        >
-          {word}
-        </span>
-      ))}
-      <span
-        className="speech-caret"
-        aria-hidden
-        style={{
-          animationDelay: `${words.length * stepMs}ms`,
-          animationName: "caret-fade-out",
-          animationDuration: "0.01ms",
-          animationFillMode: "forwards",
-        }}
-      />
+          className="speech-caret"
+          aria-hidden
+          style={{ animationDelay: `${chars.length * stepMs}ms` }}
+        />
+      </span>
     </p>
   );
 }
