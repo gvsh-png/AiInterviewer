@@ -19,7 +19,8 @@ export async function middleware(request: NextRequest) {
     pathname.endsWith(".png") ||
     pathname.endsWith(".webp") ||
     pathname.endsWith(".svg") ||
-    pathname.endsWith(".ico");
+    pathname.endsWith(".ico") ||
+    pathname.startsWith("/avatars");
 
   // Local convenience: no password configured → open access.
   // Production requires SITE_PASSWORD.

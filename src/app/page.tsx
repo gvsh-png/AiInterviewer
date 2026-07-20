@@ -1,5 +1,5 @@
-import InterviewRoom from "@/components/InterviewRoom";
+import InterviewerRoster from "@/components/InterviewerRoster";
 
 export default function Home() {
-  return <InterviewRoom />;
+  return <InterviewerRoster />;
 }

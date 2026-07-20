@@ -34,10 +34,12 @@ body {
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  background:
+  background: var(
+    --room-gradient,
     radial-gradient(ellipse 90% 70% at 70% 10%, rgba(196, 160, 53, 0.18), transparent 55%),
     radial-gradient(ellipse 60% 50% at 15% 85%, rgba(47, 74, 52, 0.9), transparent 60%),
-    linear-gradient(165deg, #243528 0%, #121a14 48%, #0d130f 100%);
+    linear-gradient(165deg, #243528 0%, #121a14 48%, #0d130f 100%)
+  );
 }
 
 .grain {
@@ -195,6 +197,14 @@ body {
   color: color-mix(in oklab, var(--paper) 82%, transparent);
 }
 
+.hero-role {
+  margin: 0.65rem 0 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sulfur);
+}
+
 .cta-row {
   margin-top: 2rem;
 }
@@ -243,6 +253,9 @@ button {
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
 .ghost.danger {
@@ -308,6 +321,13 @@ button {
 .avatar.size-lg {
   width: 5.5rem;
   height: 5.5rem;
+}
+
+.avatar.size-card {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
 }
 
 .avatar.size-hero {
@@ -672,6 +692,115 @@ button {
   border: 0;
 }
 
+.roster-room {
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(196, 160, 53, 0.12), transparent 55%),
+    linear-gradient(165deg, #1a2218 0%, #0e140f 55%, #0a0e0b 100%);
+}
+
+.roster-count {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.roster-hero {
+  position: relative;
+  z-index: 2;
+  padding: 1rem 1.5rem 2rem;
+  max-width: 720px;
+  animation: rise-in 0.7s ease-out both;
+}
+
+.roster-brand {
+  font-size: clamp(2.8rem, 12vw, 5.5rem);
+}
+
+.roster-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  padding: 0 1.25rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.roster-card {
+  display: grid;
+  grid-template-rows: 220px auto;
+  text-decoration: none;
+  color: var(--paper);
+  background: var(--card-gradient, var(--moss-deep));
+  border: 1px solid color-mix(in oklab, var(--sulfur) 30%, transparent);
+  overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s ease;
+  animation: rise-in 0.55s ease-out both;
+}
+
+.roster-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--sulfur);
+}
+
+.roster-card-media {
+  position: relative;
+  overflow: hidden;
+  background: var(--moss-deep);
+}
+
+.roster-card-media .avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.roster-card-media .avatar-img {
+  object-position: center 18%;
+}
+
+.roster-card-media .pulse,
+.roster-card-media .speak-bars {
+  display: none;
+}
+
+.roster-card-copy {
+  padding: 1rem 1.05rem 1.2rem;
+  background: color-mix(in oklab, var(--moss-deep) 88%, black);
+}
+
+.roster-job {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sulfur);
+}
+
+.roster-name {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.roster-title {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ash);
+}
+
+.roster-tag {
+  margin: 0.65rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: color-mix(in oklab, var(--paper) 78%, transparent);
+}
+
 @media (max-width: 640px) {
   .composer .row {
     flex-direction: column;
@@ -701,5 +830,9 @@ button {
       rgba(13, 19, 15, 0.95) 100%
     );
     max-width: none;
+  }
+
+  .roster-grid {
+    grid-template-columns: 1fr;
   }
 }

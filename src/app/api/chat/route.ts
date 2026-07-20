@@ -6,12 +6,14 @@ import {
   type ChatMessage,
   type ConversationMeta,
 } from "@/lib/personality";
+import { getInterviewer } from "@/lib/interviewers";
 
 export const runtime = "nodejs";
 
 type RequestBody = {
   messages: ChatMessage[];
   meta?: Partial<ConversationMeta>;
+  interviewerId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -19,6 +21,14 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as RequestBody;
     const messages = body.messages ?? [];
     const apiKey = process.env.OPENROUTER_API_KEY;
+    const interviewer = getInterviewer(body.interviewerId || "derek");
+
+    if (!interviewer) {
+      return NextResponse.json(
+        { error: "Unknown interviewer" },
+        { status: 400 }
+      );
+    }
 
     if (!apiKey) {
       return NextResponse.json(
@@ -48,10 +58,9 @@ export async function POST(req: NextRequest) {
     const phase = derivePhase(turnCount, therapyScore);
 
     const meta: ConversationMeta = { turnCount, therapyScore, phase };
-    const system = buildSystemPrompt(meta);
+    const system = buildSystemPrompt(interviewer.systemPrompt, meta);
 
-    const model =
-      process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+    const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
     const upstream = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -62,11 +71,11 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
           "HTTP-Referer":
             process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
-          "X-Title": process.env.OPENROUTER_SITE_NAME || "Derek Interviewer",
+          "X-Title": process.env.OPENROUTER_SITE_NAME || "Probe Interviewers",
         },
         body: JSON.stringify({
           model,
-          temperature: 0.85,
+          temperature: 0.9,
           max_tokens: 180,
           messages: [
             { role: "system", content: system },

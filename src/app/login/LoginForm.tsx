@@ -2,14 +2,16 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import DerekAvatar from "@/components/DerekAvatar";
+import { getInterviewer } from "@/lib/interviewers";
+import PersonaAvatar from "@/components/PersonaAvatar";
 
-export default function LoginPage() {
+export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const host = getInterviewer("derek")!;
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -42,12 +44,12 @@ export default function LoginPage() {
       <div className="lamp" aria-hidden />
 
       <main className="login-panel">
-        <DerekAvatar size="lg" />
+        <PersonaAvatar interviewer={host} size="lg" />
         <p className="eyebrow">Probe Labs</p>
         <h1 className="login-title">Staff only</h1>
         <p className="lede login-lede">
-          Derek’s interview room is locked. Enter the site password to sit
-          down.
+          The interview floor is locked. Enter the site password to meet the
+          board.
         </p>
         <form className="login-form" onSubmit={onSubmit}>
           <label className="sr-only" htmlFor="site-password">

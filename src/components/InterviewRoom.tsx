@@ -1,19 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  OPENING_LINE,
-  type ChatMessage,
-  type ConversationMeta,
-} from "@/lib/personality";
+import type { ChatMessage, ConversationMeta } from "@/lib/personality";
+import type { Interviewer } from "@/lib/interviewers";
+import { themeStyle } from "@/lib/interviewers";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
-import DerekAvatar from "@/components/DerekAvatar";
+import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
 
 type Line = {
   id: string;
-  role: "derek" | "you";
+  role: "them" | "you";
   text: string;
 };
 
@@ -30,7 +29,11 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function InterviewRoom() {
+export default function InterviewRoom({
+  interviewer,
+}: {
+  interviewer: Interviewer;
+}) {
   const router = useRouter();
   const [started, setStarted] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
@@ -52,7 +55,6 @@ export default function InterviewRoom() {
   const { supported: ttsOk, speaking, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
-  // Block all user input while Derek is thinking or still talking.
   const inputLocked = busy || speaking;
 
   useEffect(() => {
@@ -73,14 +75,11 @@ export default function InterviewRoom() {
   } = useSpeechRecognition(onFinalSpeech);
 
   useEffect(() => {
-    prefetch(OPENING_LINE);
-  }, [prefetch]);
+    prefetch(interviewer.openingLine, interviewer.id);
+  }, [prefetch, interviewer.openingLine, interviewer.id]);
 
-  // Never keep the mic open while Derek owns the turn.
   useEffect(() => {
-    if (inputLocked && listening) {
-      stopListen();
-    }
+    if (inputLocked && listening) stopListen();
   }, [inputLocked, listening, stopListen]);
 
   useEffect(() => {
@@ -90,7 +89,7 @@ export default function InterviewRoom() {
     });
   }, [lines, interim, busy, speechReveal]);
 
-  const startDerekSpeech = useCallback(
+  const startPersonaSpeech = useCallback(
     (lineId: string, reply: string) => {
       setSpeechReveal({
         lineId,
@@ -102,6 +101,7 @@ export default function InterviewRoom() {
       });
       autoListenRef.current = true;
       speak(reply, {
+        interviewerId: interviewer.id,
         onChunkStart: (progress) => {
           setSpeechReveal((prev) => {
             if (!prev || prev.lineId !== lineId) return prev;
@@ -127,8 +127,9 @@ export default function InterviewRoom() {
         },
       });
     },
-    [speak]
+    [speak, interviewer.id]
   );
+
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
@@ -139,10 +140,7 @@ export default function InterviewRoom() {
       setBusy(true);
       setTyped("");
 
-      const nextLines: Line[] = [
-        ...lines,
-        { id: uid(), role: "you", text },
-      ];
+      const nextLines: Line[] = [...lines, { id: uid(), role: "you", text }];
       setLines(nextLines);
 
       const nextMessages: ChatMessage[] = [
@@ -158,6 +156,7 @@ export default function InterviewRoom() {
           body: JSON.stringify({
             messages: nextMessages,
             meta,
+            interviewerId: interviewer.id,
           }),
         });
         const data = await res.json();
@@ -167,12 +166,11 @@ export default function InterviewRoom() {
 
         const reply = String(data.reply || "");
         const nextMeta = data.meta as ConversationMeta;
-        const derekId = uid();
+        const themId = uid();
         setMeta(nextMeta);
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
-        setLines([...nextLines, { id: derekId, role: "derek", text: reply }]);
-        // Start TTS before clearing busy so input stays locked across the handoff.
-        startDerekSpeech(derekId, reply);
+        setLines([...nextLines, { id: themId, role: "them", text: reply }]);
+        startPersonaSpeech(themId, reply);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something broke";
         setError(message);
@@ -180,7 +178,16 @@ export default function InterviewRoom() {
         setBusy(false);
       }
     },
-    [busy, speaking, lines, messages, meta, startDerekSpeech, stopListen]
+    [
+      busy,
+      speaking,
+      lines,
+      messages,
+      meta,
+      interviewer.id,
+      startPersonaSpeech,
+      stopListen,
+    ]
   );
 
   useEffect(() => {
@@ -201,17 +208,22 @@ export default function InterviewRoom() {
     if (inputLocked || !sttOk) return;
     startListen();
   };
+
   const beginInterview = () => {
     cancel();
     stopListen();
     setError(null);
     setStarted(true);
-    const derekId = uid();
-    setLines([{ id: derekId, role: "derek", text: OPENING_LINE }]);
-    setMessages([{ role: "assistant", content: OPENING_LINE }]);
+    const themId = uid();
+    setLines([
+      { id: themId, role: "them", text: interviewer.openingLine },
+    ]);
+    setMessages([
+      { role: "assistant", content: interviewer.openingLine },
+    ]);
     setMeta({ turnCount: 0, therapyScore: 0, phase: "strict" });
     setTyped("");
-    startDerekSpeech(derekId, OPENING_LINE);
+    startPersonaSpeech(themId, interviewer.openingLine);
   };
 
   const restart = () => {
@@ -237,9 +249,9 @@ export default function InterviewRoom() {
   };
 
   const phaseLabel: Record<ConversationMeta["phase"], string> = {
-    strict: "Strict hire mode",
+    strict: "Mask on",
     cracking: "Cracking",
-    confessional: "Family spill",
+    confessional: "Spilling",
     enamored: "Attached",
   };
 
@@ -251,8 +263,10 @@ export default function InterviewRoom() {
         speaking
     );
 
+  const firstName = interviewer.name.split(" ")[0] || interviewer.name;
+
   return (
-    <div className="room">
+    <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
       <div className="grain" aria-hidden />
       <div className="blinds" aria-hidden />
       <div className="lamp" aria-hidden />
@@ -260,6 +274,9 @@ export default function InterviewRoom() {
       <header className="topbar">
         <p className="mark">PROBE</p>
         <div className="top-actions">
+          <Link href="/" className="ghost">
+            Roster
+          </Link>
           <button type="button" className="ghost" onClick={() => void logout()}>
             Lock
           </button>
@@ -274,15 +291,15 @@ export default function InterviewRoom() {
       {!started ? (
         <section className="hero">
           <div className="hero-portrait" aria-hidden>
-            <DerekAvatar size="hero" />
+            <PersonaAvatar interviewer={interviewer} size="hero" />
           </div>
           <div className="hero-copy">
-            <p className="eyebrow">Game testing intake</p>
-            <h1 className="brand">DEREK</h1>
-            <p className="lede">
-              Senior QA Lead. Strict. Self-obsessed. Will open up about his
-              family — if you last long enough.
+            <p className="eyebrow">{interviewer.job}</p>
+            <h1 className="brand">{firstName.toUpperCase()}</h1>
+            <p className="hero-role">
+              {interviewer.title} · {interviewer.company}
             </p>
+            <p className="lede">{interviewer.tagline}</p>
             <div className="cta-row">
               <button type="button" className="primary" onClick={beginInterview}>
                 Sit for the interview
@@ -299,23 +316,27 @@ export default function InterviewRoom() {
       ) : (
         <section className="stage">
           <div className="derek-panel">
-            <DerekAvatar
+            <PersonaAvatar
+              interviewer={interviewer}
               size="lg"
               speaking={speaking}
               listening={listening}
             />
             <div className="derek-meta">
-              <h2>Derek Holloway</h2>
-              <p>Senior QA Lead · Probe Labs</p>
+              <h2>{interviewer.name}</h2>
+              <p>
+                {interviewer.title} · {interviewer.job}
+              </p>
               <p className="phase">{phaseLabel[meta.phase]}</p>
             </div>
           </div>
 
           <div className="transcript" ref={scrollRef}>
             {lines.map((line) => (
-              <div key={line.id} className={`bubble ${line.role}`}>
-                {line.role === "derek" && (
-                  <DerekAvatar
+              <div key={line.id} className={`bubble ${line.role === "them" ? "derek" : "you"}`}>
+                {line.role === "them" && (
+                  <PersonaAvatar
+                    interviewer={interviewer}
                     size="sm"
                     speaking={false}
                     className="bubble-avatar"
@@ -323,9 +344,11 @@ export default function InterviewRoom() {
                 )}
                 <div className="bubble-body">
                   <span className="who">
-                    {line.role === "derek" ? "Derek" : "You"}
+                    {line.role === "them" ? firstName : "You"}
                   </span>
-                  {line.role === "derek" && isLineRevealing(line.id) && speechReveal ? (
+                  {line.role === "them" &&
+                  isLineRevealing(line.id) &&
+                  speechReveal ? (
                     <DerekSpeechText
                       text={speechReveal.fullText}
                       settled={speechReveal.settled}
@@ -349,9 +372,13 @@ export default function InterviewRoom() {
             )}
             {busy && (
               <div className="bubble derek thinking">
-                <DerekAvatar size="sm" className="bubble-avatar" />
+                <PersonaAvatar
+                  interviewer={interviewer}
+                  size="sm"
+                  className="bubble-avatar"
+                />
                 <div className="bubble-body">
-                  <span className="who">Derek</span>
+                  <span className="who">{firstName}</span>
                   <p>Judging you…</p>
                 </div>
               </div>
@@ -364,9 +391,7 @@ export default function InterviewRoom() {
               <button
                 type="button"
                 className={`mic ${listening ? "on" : ""}`}
-                onClick={() =>
-                  listening ? stopListen() : tryStartListen()
-                }
+                onClick={() => (listening ? stopListen() : tryStartListen())}
                 disabled={!sttOk || inputLocked}
                 aria-label={listening ? "Stop listening" : "Speak"}
               >
@@ -375,7 +400,7 @@ export default function InterviewRoom() {
                   : busy
                     ? "Wait…"
                     : speaking
-                      ? "Derek talking…"
+                      ? `${firstName} talking…`
                       : "Speak"}
               </button>
               <form
@@ -391,9 +416,9 @@ export default function InterviewRoom() {
                   onChange={(e) => setTyped(e.target.value)}
                   placeholder={
                     busy
-                      ? "Derek is thinking…"
+                      ? `${firstName} is thinking…`
                       : speaking
-                        ? "Wait until Derek finishes…"
+                        ? `Wait until ${firstName} finishes…`
                         : "Or type your answer…"
                   }
                   disabled={inputLocked}

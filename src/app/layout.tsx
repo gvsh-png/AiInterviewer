@@ -15,9 +15,9 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "DEREK — Probe Labs Interview",
+  title: "PROBE — Twisted Job Interviewers",
   description:
-    "Voice interview with Derek Holloway, a strict self-obsessed QA lead for a game testing job.",
+    "Pick a twisted interviewer for a voice job interview. Different jobs, voices, and dangerous personalities.",
 };
 
 export default function RootLayout({
