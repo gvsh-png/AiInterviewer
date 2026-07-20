@@ -1,0 +1,105 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  buildSystemPrompt,
+  derivePhase,
+  detectTherapyScoreDelta,
+  type ChatMessage,
+  type ConversationMeta,
+} from "@/lib/personality";
+
+export const runtime = "nodejs";
+
+type RequestBody = {
+  messages: ChatMessage[];
+  meta?: Partial<ConversationMeta>;
+  apiKey?: string;
+};
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = (await req.json()) as RequestBody;
+    const messages = body.messages ?? [];
+    const clientKey = body.apiKey?.trim();
+    const apiKey = process.env.OPENROUTER_API_KEY || clientKey;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing OpenRouter API key. Set OPENROUTER_API_KEY or paste a key in Settings.",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { error: "messages array is required" },
+        { status: 400 }
+      );
+    }
+
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const priorTurns = messages.filter((m) => m.role === "user").length;
+    const prevTherapy = body.meta?.therapyScore ?? 0;
+    const therapyDelta = lastUser
+      ? detectTherapyScoreDelta(lastUser.content)
+      : 0;
+    const therapyScore = prevTherapy + therapyDelta;
+    const turnCount = priorTurns;
+    const phase = derivePhase(turnCount, therapyScore);
+
+    const meta: ConversationMeta = { turnCount, therapyScore, phase };
+    const system = buildSystemPrompt(meta);
+
+    const model =
+      process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+
+    const upstream = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer":
+            process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+          "X-Title": process.env.OPENROUTER_SITE_NAME || "Derek Interviewer",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.85,
+          max_tokens: 320,
+          messages: [
+            { role: "system", content: system },
+            ...messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          ],
+        }),
+      }
+    );
+
+    if (!upstream.ok) {
+      const detail = await upstream.text();
+      return NextResponse.json(
+        {
+          error: "OpenRouter request failed",
+          detail: detail.slice(0, 500),
+        },
+        { status: upstream.status }
+      );
+    }
+
+    const data = await upstream.json();
+    const reply =
+      data?.choices?.[0]?.message?.content?.trim() ||
+      "I asked you a question. Answer it.";
+
+    return NextResponse.json({ reply, meta });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
