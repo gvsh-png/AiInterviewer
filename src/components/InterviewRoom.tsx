@@ -37,7 +37,8 @@ export default function InterviewRoom() {
   const autoListenRef = useRef(false);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
 
-  const { supported: ttsOk, speaking, speak, cancel } = useSpeechSynthesis();
+  const { supported: ttsOk, speaking, speak, prefetch, cancel } =
+    useSpeechSynthesis();
 
   const onFinalSpeech = useCallback((text: string) => {
     void sendRef.current(text);
@@ -50,6 +51,10 @@ export default function InterviewRoom() {
     start: startListen,
     stop: stopListen,
   } = useSpeechRecognition(onFinalSpeech);
+
+  useEffect(() => {
+    prefetch(OPENING_LINE);
+  }, [prefetch]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({

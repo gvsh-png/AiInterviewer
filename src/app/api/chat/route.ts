@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model,
           temperature: 0.85,
-          max_tokens: 320,
+          max_tokens: 180,
           messages: [
             { role: "system", content: system },
             ...messages.map((m) => ({
