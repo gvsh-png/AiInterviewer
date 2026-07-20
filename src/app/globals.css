@@ -493,35 +493,31 @@ button {
   color: var(--paper);
 }
 
-.speech-word {
+.speech-typewriter {
+  display: inline;
+}
+
+.speech-char {
   display: inline;
   opacity: 0;
-  filter: blur(3px);
-  transform: translateY(0.35em);
-  animation: word-pop 0.28s ease both;
+  animation: type-in 1ms linear both;
 }
 
 .speech-caret {
   display: inline-block;
-  width: 0.45em;
-  height: 1em;
-  margin-left: 0.1em;
-  vertical-align: -0.15em;
-  background: color-mix(in oklab, var(--sulfur) 75%, transparent);
-  animation: caret-blink 0.9s steps(1) infinite;
+  width: 0.55ch;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: -0.12em;
+  background: var(--sulfur);
+  animation:
+    caret-blink 0.7s steps(1) infinite,
+    caret-hide 1ms linear both;
 }
 
-@keyframes word-pop {
-  from {
-    opacity: 0;
-    filter: blur(3px);
-    transform: translateY(0.35em);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
+@keyframes type-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes caret-blink {
@@ -529,8 +525,12 @@ button {
   50%, 100% { opacity: 0; }
 }
 
-@keyframes caret-fade-out {
-  to { opacity: 0; width: 0; margin: 0; }
+@keyframes caret-hide {
+  to {
+    opacity: 0;
+    width: 0;
+    margin: 0;
+  }
 }
 
 .composer {
