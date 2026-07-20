@@ -184,7 +184,8 @@ export function splitSpeakChunks(text: string): string[] {
   let buf = "";
   for (const sentence of sentences) {
     const next = buf ? `${buf} ${sentence}` : sentence;
-    if (next.length > 140 && buf) {
+    // Keep chunks short so mobile transcript wraps naturally.
+    if (next.length > 72 && buf) {
       chunks.push(buf);
       buf = sentence;
     } else {
