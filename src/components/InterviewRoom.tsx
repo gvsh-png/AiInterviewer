@@ -36,11 +36,20 @@ export default function InterviewRoom() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoListenRef = useRef(false);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const lockedRef = useRef(false);
 
   const { supported: ttsOk, speaking, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
+  // Block all user input while Derek is thinking or still talking.
+  const inputLocked = busy || speaking;
+
+  useEffect(() => {
+    lockedRef.current = inputLocked;
+  }, [inputLocked]);
+
   const onFinalSpeech = useCallback((text: string) => {
+    if (lockedRef.current) return;
     void sendRef.current(text);
   }, []);
 
@@ -56,6 +65,13 @@ export default function InterviewRoom() {
     prefetch(OPENING_LINE);
   }, [prefetch]);
 
+  // Never keep the mic open while Derek owns the turn.
+  useEffect(() => {
+    if (inputLocked && listening) {
+      stopListen();
+    }
+  }, [inputLocked, listening, stopListen]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -66,10 +82,9 @@ export default function InterviewRoom() {
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy) return;
+      if (!text || busy || speaking) return;
 
       stopListen();
-      cancel();
       setError(null);
       setBusy(true);
       setTyped("");
@@ -106,6 +121,7 @@ export default function InterviewRoom() {
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
         setLines([...nextLines, { id: uid(), role: "derek", text: reply }]);
         autoListenRef.current = true;
+        // Start TTS before clearing busy so input stays locked across the handoff.
         speak(reply);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something broke";
@@ -114,7 +130,7 @@ export default function InterviewRoom() {
         setBusy(false);
       }
     },
-    [busy, cancel, lines, messages, meta, speak, stopListen]
+    [busy, speaking, lines, messages, meta, speak, stopListen]
   );
 
   useEffect(() => {
@@ -124,11 +140,17 @@ export default function InterviewRoom() {
   useEffect(() => {
     if (!speaking && autoListenRef.current && started && !busy && sttOk) {
       autoListenRef.current = false;
-      const t = window.setTimeout(() => startListen(), 350);
+      const t = window.setTimeout(() => {
+        if (!lockedRef.current) startListen();
+      }, 350);
       return () => window.clearTimeout(t);
     }
   }, [speaking, started, busy, sttOk, startListen]);
 
+  const tryStartListen = () => {
+    if (inputLocked || !sttOk) return;
+    startListen();
+  };
   const beginInterview = () => {
     cancel();
     stopListen();
@@ -273,30 +295,46 @@ export default function InterviewRoom() {
               <button
                 type="button"
                 className={`mic ${listening ? "on" : ""}`}
-                onClick={() => (listening ? stopListen() : startListen())}
-                disabled={!sttOk || busy || speaking}
+                onClick={() =>
+                  listening ? stopListen() : tryStartListen()
+                }
+                disabled={!sttOk || inputLocked}
                 aria-label={listening ? "Stop listening" : "Speak"}
               >
-                {listening ? "Listening" : "Speak"}
+                {listening
+                  ? "Listening"
+                  : busy
+                    ? "Wait…"
+                    : speaking
+                      ? "Derek talking…"
+                      : "Speak"}
               </button>
               <form
                 className="type-form"
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (inputLocked) return;
                   void sendUserMessage(typed);
                 }}
               >
                 <input
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
-                  placeholder="Or type your answer…"
-                  disabled={busy}
+                  placeholder={
+                    busy
+                      ? "Derek is thinking…"
+                      : speaking
+                        ? "Wait until Derek finishes…"
+                        : "Or type your answer…"
+                  }
+                  disabled={inputLocked}
+                  readOnly={inputLocked}
                   aria-label="Type your answer"
                 />
                 <button
                   type="submit"
                   className="send"
-                  disabled={busy || !typed.trim()}
+                  disabled={inputLocked || !typed.trim()}
                 >
                   Send
                 </button>
