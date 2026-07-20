@@ -441,15 +441,19 @@ button {
 
 .transcript {
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
   padding: 0.5rem 0.15rem 1rem;
   mask-image: linear-gradient(180deg, transparent, black 8%, black 92%, transparent);
+  width: 100%;
+  max-width: 100%;
 }
 
 .bubble {
-  max-width: 92%;
+  max-width: min(92%, 100%);
+  width: 100%;
   animation: rise-in 0.35s ease-out both;
   display: flex;
   gap: 0.65rem;
@@ -458,6 +462,7 @@ button {
 
 .bubble.derek {
   align-self: flex-start;
+  max-width: min(92%, 100%);
 }
 
 .bubble.you {
@@ -471,7 +476,11 @@ button {
 }
 
 .bubble-body {
+  flex: 1;
   min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .bubble .who {
@@ -488,11 +497,16 @@ button {
   margin: 0;
   line-height: 1.5;
   font-size: 1.02rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .bubble.derek p,
 .bubble.derek .speech-text {
   color: var(--paper);
+  opacity: 1;
 }
 
 .bubble.you p {
@@ -509,20 +523,6 @@ button {
   min-height: 1.5em;
 }
 
-.speech-settled {
-  color: var(--paper);
-}
-
-.speech-typewriter {
-  display: inline;
-}
-
-.speech-char {
-  display: inline;
-  opacity: 0;
-  animation: type-in 1ms linear both;
-}
-
 .speech-caret {
   display: inline-block;
   width: 0.55ch;
@@ -530,27 +530,12 @@ button {
   margin-left: 1px;
   vertical-align: -0.12em;
   background: var(--sulfur);
-  animation:
-    caret-blink 0.7s steps(1) infinite,
-    caret-hide 1ms linear both;
-}
-
-@keyframes type-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: caret-blink 0.7s steps(1) infinite;
 }
 
 @keyframes caret-blink {
   0%, 45% { opacity: 1; }
   50%, 100% { opacity: 0; }
-}
-
-@keyframes caret-hide {
-  to {
-    opacity: 0;
-    width: 0;
-    margin: 0;
-  }
 }
 
 .composer {

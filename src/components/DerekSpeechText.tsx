@@ -1,65 +1,67 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 type DerekSpeechTextProps = {
-  /** Full final text once speech is done (or non-animated lines). */
   text: string;
-  /** Text already fully spoken (previous chunks). */
   settled?: string;
-  /** Current chunk being spoken. */
   activeChunk?: string;
-  /** How long the active chunk audio lasts. */
   durationMs?: number;
-  /** When true, show full text with no animation. */
+  /** Epoch ms when the current chunk started typing. */
+  chunkStartedAt?: number;
   complete?: boolean;
 };
+
+function subscribeTick(onStoreChange: () => void) {
+  const id = window.setInterval(onStoreChange, 32);
+  return () => window.clearInterval(id);
+}
+
+function getTick() {
+  return Date.now();
+}
 
 export default function DerekSpeechText({
   text,
   settled = "",
   activeChunk = "",
   durationMs = 0,
+  chunkStartedAt = 0,
   complete = false,
 }: DerekSpeechTextProps) {
-  const chars = useMemo(() => Array.from(activeChunk), [activeChunk]);
+  const activeChars = useMemo(() => Array.from(activeChunk), [activeChunk]);
+  const now = useSyncExternalStore(subscribeTick, getTick, getTick);
+
   const stepMs = useMemo(() => {
-    if (!chars.length) return 0;
-    // Type slightly ahead of audio end so the line finishes with his voice.
-    return Math.max(18, (Math.max(durationMs, 500) * 0.9) / chars.length);
-  }, [durationMs, chars.length]);
+    if (!activeChars.length) return 0;
+    return Math.max(16, (Math.max(durationMs, 500) * 0.9) / activeChars.length);
+  }, [durationMs, activeChars.length]);
 
   if (complete) {
     return <p className="speech-text">{text}</p>;
   }
 
-  if (!settled && !activeChunk) {
-    return (
-      <p className="speech-text revealing" aria-label={text}>
-        <span className="speech-caret" aria-hidden />
-      </p>
-    );
-  }
+  const elapsed = chunkStartedAt > 0 ? Math.max(0, now - chunkStartedAt) : 0;
+  const visibleCount =
+    activeChars.length === 0
+      ? 0
+      : Math.min(
+          activeChars.length,
+          Math.floor(elapsed / Math.max(stepMs, 1))
+        );
+
+  const visibleActive = activeChars.slice(0, visibleCount).join("");
+  const showing =
+    settled && visibleActive
+      ? `${settled} ${visibleActive}`
+      : settled || visibleActive;
+
+  const typing = activeChars.length > 0 && visibleCount < activeChars.length;
 
   return (
     <p className="speech-text revealing" aria-label={text}>
-      {settled ? <span className="speech-settled">{settled} </span> : null}
-      <span className="speech-typewriter">
-        {chars.map((char, index) => (
-          <span
-            key={`${activeChunk}-${index}`}
-            className="speech-char"
-            style={{ animationDelay: `${index * stepMs}ms` }}
-          >
-            {char === " " ? "\u00a0" : char}
-          </span>
-        ))}
-        <span
-          className="speech-caret"
-          aria-hidden
-          style={{ animationDelay: `${chars.length * stepMs}ms` }}
-        />
-      </span>
+      {showing}
+      {typing || !showing ? <span className="speech-caret" aria-hidden /> : null}
     </p>
   );
 }

@@ -22,6 +22,7 @@ type SpeechReveal = {
   settled: string;
   activeChunk: string;
   durationMs: number;
+  chunkStartedAt: number;
   complete: boolean;
 };
 
@@ -97,6 +98,7 @@ export default function InterviewRoom({
         settled: "",
         activeChunk: "",
         durationMs: 0,
+        chunkStartedAt: 0,
         complete: false,
       });
       autoListenRef.current = true;
@@ -110,6 +112,7 @@ export default function InterviewRoom({
               settled: progress.settledText,
               activeChunk: progress.chunk,
               durationMs: progress.durationMs,
+              chunkStartedAt: Date.now(),
               complete: false,
             };
           });
@@ -121,6 +124,7 @@ export default function InterviewRoom({
               ...prev,
               settled: reply,
               activeChunk: "",
+              chunkStartedAt: 0,
               complete: true,
             };
           });
@@ -350,10 +354,12 @@ export default function InterviewRoom({
                   isLineRevealing(line.id) &&
                   speechReveal ? (
                     <DerekSpeechText
+                      key={`${speechReveal.activeChunk}-${speechReveal.chunkStartedAt}`}
                       text={speechReveal.fullText}
                       settled={speechReveal.settled}
                       activeChunk={speechReveal.activeChunk}
                       durationMs={speechReveal.durationMs}
+                      chunkStartedAt={speechReveal.chunkStartedAt}
                       complete={false}
                     />
                   ) : (
