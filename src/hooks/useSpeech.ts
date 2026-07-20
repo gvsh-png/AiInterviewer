@@ -140,7 +140,6 @@ const MALE_VOICE_SCORE = (v: SpeechSynthesisVoice): number => {
   else if (lang.startsWith("en")) score += 3;
   else return -100;
 
-  // Prefer clearly male / deep system voices.
   if (
     /onyx|guy|david|mark|eric|daniel|george|arthur|thomas|reed|andrew|brian|christopher|james|ryan|steffan|male/.test(
       name
@@ -149,12 +148,10 @@ const MALE_VOICE_SCORE = (v: SpeechSynthesisVoice): number => {
     score += 20;
   }
 
-  // Natural neural / online voices beat robotic local ones.
   if (/neural|natural|online|google|microsoft|premium|enhanced/.test(name)) {
     score += 10;
   }
 
-  // Avoid obviously feminine / high voices.
   if (
     /female|woman|zira|samantha|karen|moira|tessa|fiona|victoria|susan|hazel|jenny|aria|sara|michelle|catherine|helena/.test(
       name
@@ -175,6 +172,62 @@ function pickMaleVoice(voices: SpeechSynthesisVoice[]) {
   return ranked[0] ?? null;
 }
 
+/** Split into speakable chunks so first audio can start ASAP. */
+export function splitSpeakChunks(text: string): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+
+  const raw = clean.match(/[^.!?]+[.!?]+\s*|[^.!?]+$/g) || [clean];
+  const sentences = raw.map((s) => s.trim()).filter(Boolean);
+
+  const chunks: string[] = [];
+  let buf = "";
+  for (const sentence of sentences) {
+    const next = buf ? `${buf} ${sentence}` : sentence;
+    if (next.length > 140 && buf) {
+      chunks.push(buf);
+      buf = sentence;
+    } else {
+      buf = next;
+    }
+  }
+  if (buf) chunks.push(buf);
+  return chunks;
+}
+
+async function fetchTtsBlob(text: string, signal?: AbortSignal): Promise<Blob> {
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`TTS ${res.status}`);
+  return res.blob();
+}
+
+function playAudioBlob(
+  blob: Blob,
+  audioRef: { current: HTMLAudioElement | null }
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audioRef.current = audio;
+
+    const finish = (err?: Error) => {
+      URL.revokeObjectURL(url);
+      if (audioRef.current === audio) audioRef.current = null;
+      if (err) reject(err);
+      else resolve();
+    };
+
+    audio.onended = () => finish();
+    audio.onerror = () => finish(new Error("audio play failed"));
+    void audio.play().catch((err) => finish(err instanceof Error ? err : new Error("play failed")));
+  });
+}
+
 export function useSpeechSynthesis() {
   const browserSupported = useSyncExternalStore(
     subscribeNoop,
@@ -184,7 +237,9 @@ export function useSpeechSynthesis() {
   const [speaking, setSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const cacheRef = useRef<Map<string, Blob>>(new Map());
+  const generationRef = useRef(0);
 
   useEffect(() => {
     if (!browserSupported) return;
@@ -197,13 +252,10 @@ export function useSpeechSynthesis() {
     return () => {
       window.speechSynthesis.removeEventListener("voiceschanged", load);
       window.speechSynthesis.cancel();
+      abortRef.current?.abort();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
-      }
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
       }
     };
   }, [browserSupported]);
@@ -220,10 +272,6 @@ export function useSpeechSynthesis() {
       audioRef.current.src = "";
       audioRef.current = null;
     }
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
   }, []);
 
   const speakBrowser = useCallback(
@@ -237,8 +285,7 @@ export function useSpeechSynthesis() {
       const utterance = new SpeechSynthesisUtterance(text);
       const voice = pickMaleVoice(voices);
       if (voice) utterance.voice = voice;
-      // Deeper, slower, more grounded male delivery.
-      utterance.rate = 0.9;
+      utterance.rate = 0.92;
       utterance.pitch = 0.68;
       utterance.volume = 1;
       utterance.onstart = () => setSpeaking(true);
@@ -249,43 +296,66 @@ export function useSpeechSynthesis() {
     [browserSupported, stopAudio, voices]
   );
 
+  const prefetch = useCallback(async (text: string) => {
+    const clean = text.trim();
+    if (!clean) return;
+    try {
+      const chunks = splitSpeakChunks(clean);
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          if (cacheRef.current.has(chunk)) return;
+          const blob = await fetchTtsBlob(chunk);
+          cacheRef.current.set(chunk, blob);
+        })
+      );
+    } catch {
+      /* prefetch is best-effort */
+    }
+  }, []);
+
   const speak = useCallback(
     async (text: string) => {
       const clean = text.trim();
       if (!clean) return;
 
+      const generation = ++generationRef.current;
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
+
       stopBrowser();
       stopAudio();
       setSpeaking(true);
 
+      const chunks = splitSpeakChunks(clean);
+
       try {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: clean }),
+        // Start every chunk fetch immediately; play as each becomes ready in order.
+        const blobPromises = chunks.map((chunk) => {
+          const cached = cacheRef.current.get(chunk);
+          if (cached) return Promise.resolve(cached);
+          return fetchTtsBlob(chunk, abort.signal).then((blob) => {
+            cacheRef.current.set(chunk, blob);
+            return blob;
+          });
         });
 
-        if (!res.ok) {
-          throw new Error(`TTS ${res.status}`);
+        for (let i = 0; i < chunks.length; i += 1) {
+          if (generation !== generationRef.current) return;
+          const blob = await blobPromises[i]!;
+          if (generation !== generationRef.current) return;
+          await playAudioBlob(blob, audioRef);
         }
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        objectUrlRef.current = url;
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => {
+        if (generation === generationRef.current) {
           setSpeaking(false);
-          stopAudio();
-        };
-        audio.onerror = () => {
-          setSpeaking(false);
-          stopAudio();
-          speakBrowser(clean);
-        };
-        await audio.play();
+        }
       } catch {
-        // Fall back to deeper browser male voice if cloud TTS fails.
+        if (generation !== generationRef.current) return;
+        if (abort.signal.aborted) {
+          setSpeaking(false);
+          return;
+        }
         speakBrowser(clean);
       }
     },
@@ -293,6 +363,8 @@ export function useSpeechSynthesis() {
   );
 
   const cancel = useCallback(() => {
+    generationRef.current += 1;
+    abortRef.current?.abort();
     stopBrowser();
     stopAudio();
     setSpeaking(false);
@@ -303,6 +375,9 @@ export function useSpeechSynthesis() {
     speaking,
     speak: (text: string) => {
       void speak(text);
+    },
+    prefetch: (text: string) => {
+      void prefetch(text);
     },
     cancel,
   };

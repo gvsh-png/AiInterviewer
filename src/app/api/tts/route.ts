@@ -26,19 +26,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
 
-    // Natural American male defaults (Deepgram Aura 2 · Orion).
-    const model = process.env.OPENROUTER_TTS_MODEL || "deepgram/aura-2";
-    const voice = process.env.OPENROUTER_TTS_VOICE || "aura-2-orion-en";
+    // Fast natural male defaults (Kokoro · American Onyx).
+    const model = process.env.OPENROUTER_TTS_MODEL || "hexgrad/kokoro-82m";
+    const voice = process.env.OPENROUTER_TTS_VOICE || "am_onyx";
 
     const payload: Record<string, unknown> = {
       model,
       input: text.slice(0, 4000),
       voice,
       response_format: "mp3",
-      speed: 0.95,
+      speed: 1.0,
     };
 
-    // Tone instructions only apply to OpenAI TTS models.
     if (/openai\//i.test(model)) {
       payload.provider = {
         options: {
@@ -47,6 +46,7 @@ export async function POST(req: NextRequest) {
           },
         },
       };
+      payload.speed = 0.95;
     }
 
     const upstream = await fetch("https://openrouter.ai/api/v1/audio/speech", {

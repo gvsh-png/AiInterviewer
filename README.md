@@ -29,7 +29,7 @@ Open [http://localhost:3000](http://localhost:3000) — you’ll hit `/login` wh
    - `OPENROUTER_API_KEY` — your OpenRouter key (powers chat **and** Derek’s voice)
    - `SITE_PASSWORD` — the password people need to enter the site
    - optional: `OPENROUTER_MODEL` (default `openai/gpt-4o-mini`)
-   - optional: `OPENROUTER_TTS_VOICE` (default `aura-2-orion-en` — deep natural male)
+   - optional: `OPENROUTER_TTS_VOICE` (default `am_onyx` — deep male, fast via Kokoro)
 3. Deploy
 
 Or from the CLI (after `npx vercel login`):
