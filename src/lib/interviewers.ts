@@ -37,7 +37,6 @@ export type Interviewer = {
   title: string;
   job: string;
   company: string;
-  tagline: string;
   twist: string;
   avatar: string;
   avatarWebp?: string;
@@ -56,7 +55,6 @@ export const INTERVIEWERS: Interviewer[] = [
     title: "Senior QA Lead",
     job: "Game Testing",
     company: "Probe Labs",
-    tagline: "Strict. Self-obsessed. Will cry about his marriage mid-question.",
     twist: "Narcissist who makes every bug report about his family collapse",
     avatar: "/avatars/derek.png",
     avatarWebp: "/avatars/derek.webp",
@@ -88,7 +86,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Head of Talent",
     job: "Corporate HR",
     company: "Northglass Inc.",
-    tagline: "She already knows your address. Smile for her.",
     twist: "Stalker HR — has researched you obsessively and drops it casually",
     avatar: "/avatars/marlene.png",
     avatarWebp: "/avatars/marlene.webp",
@@ -120,7 +117,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Director of Security",
     job: "Corporate Security",
     company: "Blackrail Defense",
-    tagline: "Paranoid. Armed with stories. People vanish around him.",
     twist: "Paranoid security chief who implies he's made people disappear",
     avatar: "/avatars/voss.png",
     avatarWebp: "/avatars/voss.webp",
@@ -152,7 +148,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Chief Wellness Officer",
     job: "People Wellness",
     company: "Lumen Circle",
-    tagline: "Love-bombs you into the circle. Leaving hurts her feelings.",
     twist: "Cultish wellness guru who wants total devotion",
     avatar: "/avatars/celeste.png",
     avatarWebp: "/avatars/celeste.webp",
@@ -184,7 +179,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Creative Director",
     job: "Brand & Design",
     company: "HALE/STUDIO",
-    tagline: "Steals your ideas mid-sentence. Calls it a collaboration.",
     twist: "Idea thief who gaslights you about authorship",
     avatar: "/avatars/griffin.png",
     avatarWebp: "/avatars/griffin.webp",
@@ -216,7 +210,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Chief Medical Officer",
     job: "Biotech Research",
     company: "Atrium Genetics",
-    tagline: "Clinical smile. You're a specimen. She's the scalpel.",
     twist: "Cold clinician who treats people as disposable experiments",
     avatar: "/avatars/pike.png",
     avatarWebp: "/avatars/pike.webp",
@@ -248,7 +241,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Support Escalations Lead",
     job: "Customer Support",
     company: "Ticketbin",
-    tagline: "Laughs at the wrong time. Knows what's in the basement.",
     twist: "Unsettlingly weird — jokes about disappearances in the queue",
     avatar: "/avatars/june.png",
     avatarWebp: "/avatars/june.webp",
@@ -280,7 +272,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Managing Partner",
     job: "Private Equity",
     company: "Romanov Capital",
-    tagline: "Hunting metaphors. Competitors are trophies on his wall.",
     twist: "Predatory PE partner who speaks like a hunter of people",
     avatar: "/avatars/romanov.png",
     avatarWebp: "/avatars/romanov.webp",
@@ -312,7 +303,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Growth Lead",
     job: "Social Media",
     company: "Clickmoth",
-    tagline: "Already quote-tweeted your private story. Professionally.",
     twist: "Parasocial stalker who confuses engagement with intimacy",
     avatar: "/avatars/ashley.png",
     avatarWebp: "/avatars/ashley.webp",
@@ -344,7 +334,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Night Facilities Manager",
     job: "Facilities & Ops",
     company: "Tower Nine",
-    tagline: "Needs your address for the badge. Wants you to stay.",
     twist: "Lonely night-shift creep who wants to know where you sleep",
     avatar: "/avatars/hector.png",
     avatarWebp: "/avatars/hector.webp",
@@ -376,7 +365,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "VP of Compliance",
     job: "Legal Compliance",
     company: "Statute & Grey",
-    tagline: "Rewrites what you just said. Enjoys your confusion.",
     twist: "Gaslighting sadist in a pantsuit",
     avatar: "/avatars/vera.png",
     avatarWebp: "/avatars/vera.webp",
@@ -408,7 +396,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     title: "Head Coach",
     job: "Esports Coaching",
     company: "Riotbone Gaming",
-    tagline: "Rage coach. 'Accidents' on stage are a teaching moment.",
     twist: "Volatile coach who glamorizes career-ending 'accidents'",
     avatar: "/avatars/knox.png",
     avatarWebp: "/avatars/knox.webp",

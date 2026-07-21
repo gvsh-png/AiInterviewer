@@ -51,7 +51,6 @@ export default function InterviewerRoster() {
               <p className="roster-job">{person.job}</p>
               <h2 className="roster-name">{person.name}</h2>
               <p className="roster-title">{person.title}</p>
-              <p className="roster-tag">{person.tagline}</p>
             </div>
           </Link>
         ))}

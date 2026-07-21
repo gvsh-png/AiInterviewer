@@ -294,7 +294,6 @@ export default function InterviewRoom({
             <p className="hero-role">
               {interviewer.title} · {interviewer.company}
             </p>
-            <p className="lede">{interviewer.tagline}</p>
             <div className="cta-row">
               <button type="button" className="primary" onClick={beginInterview}>
                 Sit for the interview
