@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     const therapyScore = prevTherapy + therapyDelta;
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
-    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, 10);
+    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, 5);
 
     const meta: ConversationMeta = {
       turnCount,
