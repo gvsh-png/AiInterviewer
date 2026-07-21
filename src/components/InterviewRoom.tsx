@@ -58,6 +58,21 @@ export default function InterviewRoom({
   const inputLocked = busy || speaking || preparingSpeech;
   const showThinking = busy || preparingSpeech;
 
+  const scrollTranscriptToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const node = scrollRef.current;
+      if (!node) return;
+
+      window.requestAnimationFrame(() => {
+        node.scrollTo({
+          top: node.scrollHeight,
+          behavior,
+        });
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     lockedRef.current = inputLocked;
   }, [inputLocked]);
@@ -84,11 +99,19 @@ export default function InterviewRoom({
   }, [inputLocked, listening, stopListen]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [lines, interim, showThinking, speechReveal]);
+    scrollTranscriptToBottom();
+  }, [lines, interim, showThinking, speechReveal, scrollTranscriptToBottom]);
+
+  useEffect(() => {
+    if (!started || speaking || preparingSpeech) return;
+    scrollTranscriptToBottom();
+  }, [
+    started,
+    speaking,
+    preparingSpeech,
+    speechReveal?.complete,
+    scrollTranscriptToBottom,
+  ]);
 
   const startPersonaSpeech = useCallback(
     (lineId: string, reply: string) => {
@@ -127,10 +150,12 @@ export default function InterviewRoom({
               complete: true,
             };
           });
+          scrollTranscriptToBottom();
+          window.setTimeout(() => scrollTranscriptToBottom(), 80);
         },
       });
     },
-    [speak, interviewer.id]
+    [speak, interviewer.id, scrollTranscriptToBottom]
   );
 
   const sendUserMessage = useCallback(
