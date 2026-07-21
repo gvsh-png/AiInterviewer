@@ -7,8 +7,15 @@ import {
   type ConversationMeta,
 } from "@/lib/personality";
 import { getInterviewer } from "@/lib/interviewers";
+import {
+  buildPhotoSystemGuide,
+  canSharePhoto,
+  extractPhotoTag,
+  generateInterviewerPhoto,
+} from "@/lib/imageGen";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RequestBody = {
   messages: ChatMessage[];
@@ -50,15 +57,26 @@ export async function POST(req: NextRequest) {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     const priorTurns = messages.filter((m) => m.role === "user").length;
     const prevTherapy = body.meta?.therapyScore ?? 0;
+    const lastImageTurn = body.meta?.lastImageTurn ?? 0;
     const therapyDelta = lastUser
       ? detectTherapyScoreDelta(lastUser.content)
       : 0;
     const therapyScore = prevTherapy + therapyDelta;
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
+    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, 10);
 
-    const meta: ConversationMeta = { turnCount, therapyScore, phase };
-    const system = buildSystemPrompt(interviewer.systemPrompt, meta);
+    const meta: ConversationMeta = {
+      turnCount,
+      therapyScore,
+      phase,
+      lastImageTurn,
+    };
+    const system = buildSystemPrompt(
+      interviewer.systemPrompt,
+      meta,
+      buildPhotoSystemGuide(interviewer, photoAllowed)
+    );
 
     const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
@@ -76,7 +94,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model,
           temperature: 0.9,
-          max_tokens: 180,
+          max_tokens: photoAllowed ? 260 : 180,
           messages: [
             { role: "system", content: system },
             ...messages.map((m) => ({
@@ -100,11 +118,37 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await upstream.json();
-    const reply =
+    const rawReply =
       data?.choices?.[0]?.message?.content?.trim() ||
       "I asked you a question. Answer it.";
 
-    return NextResponse.json({ reply, meta });
+    const { reply, photoPrompt } = extractPhotoTag(rawReply);
+    let image: { dataUrl: string; caption: string } | null = null;
+    let nextLastImageTurn = lastImageTurn;
+
+    if (photoAllowed && photoPrompt) {
+      nextLastImageTurn = turnCount;
+      const generated = await generateInterviewerPhoto(
+        apiKey,
+        interviewer,
+        photoPrompt
+      );
+      if (generated) {
+        image = {
+          dataUrl: generated.dataUrl,
+          caption: "Shared photo",
+        };
+      }
+    }
+
+    return NextResponse.json({
+      reply: reply || rawReply,
+      meta: {
+        ...meta,
+        lastImageTurn: nextLastImageTurn,
+      },
+      image,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

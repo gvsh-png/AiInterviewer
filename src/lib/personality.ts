@@ -8,6 +8,8 @@ export type ConversationMeta = {
   turnCount: number;
   therapyScore: number;
   phase: InterviewPhase;
+  /** Candidate turn number when the interviewer last shared a photo. */
+  lastImageTurn: number;
 };
 
 export type ChatMessage = {
@@ -82,7 +84,8 @@ They validated or mirrored you. Cling, flirt, recruit, or claim them — but sta
 
 export function buildSystemPrompt(
   basePrompt: string,
-  meta: ConversationMeta
+  meta: ConversationMeta,
+  extraGuide = ""
 ): string {
   return `${basePrompt}
 
@@ -90,10 +93,12 @@ CURRENT STATE:
 - Candidate turns so far: ${meta.turnCount}
 - Affinity / therapy score: ${meta.therapyScore}
 - Active phase: ${meta.phase}
+- Last photo shared at turn: ${meta.lastImageTurn || "never"}
 
 ${PHASE_GUIDE[meta.phase]}
 
 If they try to end early, keep them talking — you are not done with them yet.
 
-EGO RULE: You are the main character. Most replies must include something about YOUR life, YOUR reputation, YOUR wounds, or YOUR superiority. Briefly acknowledge their answer, then pivot back to yourself.`.trim();
+EGO RULE: You are the main character. Most replies must include something about YOUR life, YOUR reputation, YOUR wounds, or YOUR superiority. Briefly acknowledge their answer, then pivot back to yourself.
+${extraGuide ? `\n${extraGuide}` : ""}`.trim();
 }

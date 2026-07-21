@@ -39,6 +39,10 @@ export type Interviewer = {
   twist: string;
   avatar: string;
   avatarWebp?: string;
+  /** Consistent visual identity for generated photos. */
+  lookDescription: string;
+  /** What kinds of photos this persona would dump mid-interview. */
+  photoScenes: string;
   openingLine: string;
   /** Shown while waiting on chat or TTS before speech starts. */
   thinkingLine: string;
@@ -57,6 +61,10 @@ export const INTERVIEWERS: Interviewer[] = [
     twist: "Narcissist who makes every bug report about his family collapse",
     avatar: "/avatars/derek.png",
     avatarWebp: "/avatars/derek.webp",
+    lookDescription:
+      "Middle-aged man with salt-and-pepper short hair and beard, thin dark-rimmed glasses, stern exhausted face, dark blazer over open-collar shirt",
+    photoScenes:
+      "arguing with teenage son, cold dinner with estranged wife, alone at a QA desk at 2am, family photo where everyone looks miserable, slamming a laptop lid after a fight",
     openingLine:
       "Sit down. I'm Derek Holloway, Senior QA Lead — and before you waste my time, know I've sacrificed more for this industry than you've sacrificed for anything. Weekends, marriage, dignity. One sentence: why should I trust you with a ship-critical playtest?",
     thinkingLine: "Judging you…",
@@ -86,6 +94,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Stalker HR — has researched you obsessively and drops it casually",
     avatar: "/avatars/marlene.png",
     avatarWebp: "/avatars/marlene.webp",
+    lookDescription:
+      "Woman in her early 40s with auburn hair in a tight bun, fixed polite smile, dark burgundy blouse, intense knowing eyes",
+    photoScenes:
+      "her desk covered in printed candidate photos, late-night browser tabs of social profiles, standing outside a candidate's apartment building, annotated LinkedIn screenshots, smiling too close to a webcam",
     openingLine:
       "Marlene Crowe, Head of Talent — and honestly, I've had a long morning going through your life online. Your old school, that photo from last June, the restaurant you keep checking into. Tell me why you want HR… and don't lie. I hate liars almost as much as I hate being ignored.",
     thinkingLine: "Researching you…",
@@ -115,6 +127,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Paranoid security chief who implies he's made people disappear",
     avatar: "/avatars/voss.png",
     avatarWebp: "/avatars/voss.webp",
+    lookDescription:
+      "Man in his 50s with military buzz cut, weathered suspicious face, faint cheek scar, dark navy suit",
+    photoScenes:
+      "empty parking garage at night, redacted employee file with a photo clipped on, security monitor wall, himself standing over a locked door, a shovel leaning against a black SUV",
     openingLine:
       "Voss. Security. Sit where I can see your hands — I didn't sleep again because of a breach that was really about me, personally. If I asked who you've told about this interview, what would you say? And don't look at the camera. It's already looking at you.",
     thinkingLine: "Scanning you…",
@@ -144,6 +160,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Cultish wellness guru who wants total devotion",
     avatar: "/avatars/celeste.png",
     avatarWebp: "/avatars/celeste.webp",
+    lookDescription:
+      "Woman in her early 40s with long silver-blonde hair, serene unsettling smile, soft purple silk blouse",
+    photoScenes:
+      "circle of followers holding hands in candlelight, her leading a retreat in white robes, a locked wellness compound gate, discarded phones in a basket, a framed 'chosen ones' group photo",
     openingLine:
       "Welcome, beautiful soul. I'm Celeste Moon — Chief Wellness Officer, and I've been fasting and vision-boarding since dawn because this role matters to my purpose. Tell me: are you ready to belong to something larger than yourself? Really belong — to me, to us?",
     thinkingLine: "Feeling your energy…",
@@ -173,6 +193,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Idea thief who gaslights you about authorship",
     avatar: "/avatars/griffin.png",
     avatarWebp: "/avatars/griffin.webp",
+    lookDescription:
+      "Man in his early 40s with slick dark hair, smug smirk, black turtleneck under charcoal blazer",
+    photoScenes:
+      "moodboard with stolen sketches under his name, him presenting someone else's idea on stage, ripping a page from a junior designer's notebook, award shelf with contested trophies, late-night studio littered with unmarked drafts",
     openingLine:
       "Griffin Hale — Creative Director, and I've already had three breakthroughs today that happen to sound like other people's pitches. Give me one idea. A real one. I'll know if it's good… because good ideas tend to become mine, and I deserve that.",
     thinkingLine: "Stealing your ideas…",
@@ -202,6 +226,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Cold clinician who treats people as disposable experiments",
     avatar: "/avatars/pike.png",
     avatarWebp: "/avatars/pike.webp",
+    lookDescription:
+      "Woman in her early 50s with silver-streaked dark hair in a low bun, clinical polite smile, white lab coat over teal blouse",
+    photoScenes:
+      "cold lab with labeled specimen drawers, her reviewing charts without emotion, empty hospital bed being reset, clipboard marked 'culled', herself standing beside a sealed containment door",
     openingLine:
       "Dr. Helen Pike, CMO. I haven't felt anything inconvenient since my residency, and I prefer it that way. Describe a time you discarded a failed approach without sentimentality — I need to know you won't contaminate my lab with feelings.",
     thinkingLine: "Evaluating the specimen…",
@@ -231,6 +259,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Unsettlingly weird — jokes about disappearances in the queue",
     avatar: "/avatars/june.png",
     avatarWebp: "/avatars/june.webp",
+    lookDescription:
+      "Woman in her late 20s with messy blonde hair, too-wide cheerful smile, mustard cardigan, headset around her neck",
+    photoScenes:
+      "basement ticket archive hallway, her laughing alone at a dark cubicle, sticky-note wall of missing user names, flashlight beam on old server cages, empty night-shift break room with one cake slice",
     openingLine:
       "Hi! I'm June — escalations, and I already ate lunch alone at my desk again, ha. Can you handle customers who won't stop writing? Like… ever? Also, are you okay with night shifts near the old ticket archive? People get funny down there. I do too, sometimes.",
     thinkingLine: "Reading your ticket…",
@@ -260,6 +292,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Predatory PE partner who speaks like a hunter of people",
     avatar: "/avatars/romanov.png",
     avatarWebp: "/avatars/romanov.webp",
+    lookDescription:
+      "Man in his mid 50s with silver temples, sharp cheekbones, predator smile, expensive dark suit",
+    photoScenes:
+      "trophy wall of framed rival faces, hunting lodge dinner table, him carving into a boardroom steak, black car outside a competitor office, champagne over a signed hostile takeover",
     openingLine:
       "Romanov. Sit. I don't hire sheep — I hire people who remind me of myself at my hungriest. Tell me the last time you ruined someone professionally, and don't dress it up. I want the blood in the story, and then I'll tell you mine.",
     thinkingLine: "Sizing you up…",
@@ -289,6 +325,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Parasocial stalker who confuses engagement with intimacy",
     avatar: "/avatars/ashley.png",
     avatarWebp: "/avatars/ashley.webp",
+    lookDescription:
+      "Woman in her late 20s with glossy lips, intimate stare, pink-toned blouse, ring-light catchlights in her eyes",
+    photoScenes:
+      "her phone full of screenshots of a candidate, ring-light selfie with someone else's story open, laptop covered in sticky hearts and analytics, standing too close outside a cafe, camera roll of private photos she shouldn't have",
     openingLine:
       "Ashley Venn — Growth. I watched your stories before this call, by the way. The rainy one. Cute. I screenshotted it for engagement research about me, obviously. Why should our audience fall in love with you the way I kind of already… professionally… have?",
     thinkingLine: "Stalking your feed…",
@@ -318,6 +358,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Lonely night-shift creep who wants to know where you sleep",
     avatar: "/avatars/hector.png",
     avatarWebp: "/avatars/hector.webp",
+    lookDescription:
+      "Man in his mid 40s with thinning brown hair, soft invasive eyes, worn olive maintenance uniform, faint stubble",
+    photoScenes:
+      "empty office floor at 3am, keyring with too many unlabeled keys, him watching building lights go out, badge printer with a home address form, lonely break-room microwave dinner",
     openingLine:
       "Hector. Night facilities. Most people hate the quiet floors — I don't. I eat down there. For the badge I'll need a shipping address, home is fine. Where do you usually… stay? I like knowing who's in the building when it's just me.",
     thinkingLine: "Noting your address…",
@@ -347,6 +391,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Gaslighting sadist in a pantsuit",
     avatar: "/avatars/vera.png",
     avatarWebp: "/avatars/vera.webp",
+    lookDescription:
+      "Woman in her early 50s with severe dark bob, sharp rectangular glasses, thin cruel smile, immaculate dark suit",
+    photoScenes:
+      "her correcting a transcript with red ink, stacked NDAs on a glass desk, security badge photo of a coworker marked void, conference room where only she is smiling, shredded documents beside a neat tea cup",
     openingLine:
       "Vera Quill, Compliance — and I had a lovely morning reorganizing other people's mistakes. You said you value honesty, or did I mishear? Clarify. Carefully. Words have consequences here, especially for people who waste my time.",
     thinkingLine: "Misquoting you…",
@@ -376,6 +424,10 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
     twist: "Volatile coach who glamorizes career-ending 'accidents'",
     avatar: "/avatars/knox.png",
     avatarWebp: "/avatars/knox.webp",
+    lookDescription:
+      "Man in his mid 30s with short dark hair, faint eyebrow scar, intense glare, black gaming jacket with red accents",
+    photoScenes:
+      "smashed headset on a desk, him screaming at a monitor mid-match, stage accident aftermath with empty chairs, VOD review at 2am with energy drinks, team photo where one player is scratched out",
     openingLine:
       "Knox. Coach. I don't want nice — I want someone who can take a screaming call at 2am and still hit VOD review like I did when my career died. You ever end someone's streak on purpose? Be honest. I have, and it still keeps me warm.",
     thinkingLine: "Breaking you down…",

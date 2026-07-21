@@ -14,6 +14,8 @@ type Line = {
   id: string;
   role: "them" | "you";
   text: string;
+  imageUrl?: string;
+  imageCaption?: string;
 };
 
 type SpeechReveal = {
@@ -43,6 +45,7 @@ export default function InterviewRoom({
     turnCount: 0,
     therapyScore: 0,
     phase: "strict",
+    lastImageTurn: 0,
   });
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState("");
@@ -170,9 +173,27 @@ export default function InterviewRoom({
         const reply = String(data.reply || "");
         const nextMeta = data.meta as ConversationMeta;
         const themId = uid();
-        setMeta(nextMeta);
+        const imageUrl =
+          typeof data.image?.dataUrl === "string" ? data.image.dataUrl : undefined;
+        const imageCaption =
+          typeof data.image?.caption === "string" ? data.image.caption : undefined;
+        setMeta({
+          turnCount: nextMeta.turnCount ?? 0,
+          therapyScore: nextMeta.therapyScore ?? 0,
+          phase: nextMeta.phase ?? "strict",
+          lastImageTurn: nextMeta.lastImageTurn ?? 0,
+        });
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
-        setLines([...nextLines, { id: themId, role: "them", text: reply }]);
+        setLines([
+          ...nextLines,
+          {
+            id: themId,
+            role: "them",
+            text: reply,
+            imageUrl,
+            imageCaption,
+          },
+        ]);
         startPersonaSpeech(themId, reply);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something broke";
@@ -215,7 +236,7 @@ export default function InterviewRoom({
     setMessages([
       { role: "assistant", content: interviewer.openingLine },
     ]);
-    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict" });
+    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
     setTyped("");
     startPersonaSpeech(themId, interviewer.openingLine);
   };
@@ -227,7 +248,7 @@ export default function InterviewRoom({
     setStarted(false);
     setLines([]);
     setMessages([]);
-    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict" });
+    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
     setTyped("");
     setError(null);
     setSpeechReveal(null);
@@ -354,6 +375,18 @@ export default function InterviewRoom({
                   ) : (
                     <p className="speech-text">{line.text}</p>
                   )}
+                  {line.imageUrl ? (
+                    <figure className="speech-photo">
+                      <img
+                        src={line.imageUrl}
+                        alt={line.imageCaption || `${firstName} shared a photo`}
+                        className="speech-photo-img"
+                      />
+                      <figcaption className="speech-photo-cap">
+                        {line.imageCaption || "Shared photo"}
+                      </figcaption>
+                    </figure>
+                  ) : null}
                 </div>
               </div>
             ))}

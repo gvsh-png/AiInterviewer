@@ -8,6 +8,7 @@ Voice interview simulator with a roster of **twisted interviewers** — each wit
 - Unique **voices** and **color themes** per interviewer
 - Password gate (`SITE_PASSWORD`)
 - Speech-to-text + TTS via OpenRouter
+- Occasional character photo dumps (OpenRouter image gen, ~every 10 turns)
 - Typewriter transcript synced to spoken chunks
 - Restart + Lock + back to roster
 
