@@ -49,14 +49,13 @@ export default function InterviewRoom({
   const [error, setError] = useState<string | null>(null);
   const [speechReveal, setSpeechReveal] = useState<SpeechReveal | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const autoListenRef = useRef(false);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
 
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
-  const inputLocked = busy || speaking;
+  const inputLocked = busy || speaking || preparingSpeech;
   const showThinking = busy || preparingSpeech;
 
   useEffect(() => {
@@ -102,7 +101,6 @@ export default function InterviewRoom({
         chunkStartedAt: 0,
         complete: false,
       });
-      autoListenRef.current = true;
       speak(reply, {
         interviewerId: interviewer.id,
         onChunkStart: (progress) => {
@@ -138,7 +136,7 @@ export default function InterviewRoom({
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy || speaking) return;
+      if (!text || busy || speaking || preparingSpeech) return;
 
       stopListen();
       setError(null);
@@ -186,6 +184,7 @@ export default function InterviewRoom({
     [
       busy,
       speaking,
+      preparingSpeech,
       lines,
       messages,
       meta,
@@ -198,16 +197,6 @@ export default function InterviewRoom({
   useEffect(() => {
     sendRef.current = sendUserMessage;
   }, [sendUserMessage]);
-
-  useEffect(() => {
-    if (!speaking && autoListenRef.current && started && !busy && sttOk) {
-      autoListenRef.current = false;
-      const t = window.setTimeout(() => {
-        if (!lockedRef.current) startListen();
-      }, 350);
-      return () => window.clearTimeout(t);
-    }
-  }, [speaking, started, busy, sttOk, startListen]);
 
   const tryStartListen = () => {
     if (inputLocked || !sttOk) return;
@@ -242,7 +231,6 @@ export default function InterviewRoom({
     setTyped("");
     setError(null);
     setSpeechReveal(null);
-    autoListenRef.current = false;
   };
 
   const logout = async () => {

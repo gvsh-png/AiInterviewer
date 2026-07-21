@@ -331,24 +331,30 @@ export function useSpeechSynthesis() {
   }, []);
 
   const speakBrowser = useCallback(
-    (text: string) => {
-      if (!browserSupported || !text.trim()) {
-        setSpeaking(false);
-        return;
-      }
-      stopAudio();
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voice = pickMaleVoice(voices);
-      if (voice) utterance.voice = voice;
-      utterance.rate = 0.92;
-      utterance.pitch = 0.68;
-      utterance.volume = 1;
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    },
+    (text: string): Promise<void> =>
+      new Promise((resolve) => {
+        if (!browserSupported || !text.trim()) {
+          setSpeaking(false);
+          resolve();
+          return;
+        }
+        stopAudio();
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voice = pickMaleVoice(voices);
+        if (voice) utterance.voice = voice;
+        utterance.rate = 0.92;
+        utterance.pitch = 0.68;
+        utterance.volume = 1;
+        utterance.onstart = () => setSpeaking(true);
+        const finish = () => {
+          setSpeaking(false);
+          resolve();
+        };
+        utterance.onend = finish;
+        utterance.onerror = finish;
+        window.speechSynthesis.speak(utterance);
+      }),
     [browserSupported, stopAudio, voices]
   );
 
@@ -387,6 +393,14 @@ export function useSpeechSynthesis() {
       setSpeaking(true);
 
       const chunks = splitSpeakChunks(clean);
+      let chunkStarted = false;
+
+      const finish = () => {
+        if (generation !== generationRef.current) return;
+        setPreparingSpeech(false);
+        setSpeaking(false);
+        options?.onComplete?.();
+      };
 
       try {
         const blobPromises = chunks.map((chunk) => {
@@ -414,6 +428,7 @@ export function useSpeechSynthesis() {
           const loaded = await loadAudioBlob(blob, audioRef);
           if (generation !== generationRef.current) return;
 
+          chunkStarted = true;
           setPreparingSpeech(false);
           options?.onChunkStart?.({
             index: i,
@@ -427,10 +442,7 @@ export function useSpeechSynthesis() {
           await loaded.play();
         }
 
-        if (generation === generationRef.current) {
-          setSpeaking(false);
-          options?.onComplete?.();
-        }
+        finish();
       } catch {
         if (generation !== generationRef.current) return;
         if (abort.signal.aborted) {
@@ -439,15 +451,18 @@ export function useSpeechSynthesis() {
           return;
         }
         setPreparingSpeech(false);
-        options?.onChunkStart?.({
-          index: 0,
-          total: 1,
-          chunk: clean,
-          settledText: "",
-          revealedText: clean,
-          durationMs: Math.max(1200, clean.split(/\s+/).length * 280),
-        });
-        speakBrowser(clean);
+        if (!chunkStarted) {
+          options?.onChunkStart?.({
+            index: 0,
+            total: 1,
+            chunk: clean,
+            settledText: "",
+            revealedText: clean,
+            durationMs: Math.max(1200, clean.split(/\s+/).length * 280),
+          });
+        }
+        await speakBrowser(clean);
+        finish();
       }
     },
     [speakBrowser, stopAudio, stopBrowser]
