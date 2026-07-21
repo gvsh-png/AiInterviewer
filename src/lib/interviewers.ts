@@ -22,7 +22,6 @@ export type ThemeTokens = {
   ash: string;
   danger: string;
   glass: string;
-  gradient: string;
 };
 
 export type VoiceConfig = {
@@ -72,8 +71,6 @@ export const INTERVIEWERS: Interviewer[] = [
       ash: "#8a9478",
       danger: "#a84a3a",
       glass: "rgba(26, 34, 24, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 90% 70% at 70% 10%, rgba(196, 160, 53, 0.18), transparent 55%), radial-gradient(ellipse 60% 50% at 15% 85%, rgba(47, 74, 52, 0.9), transparent 60%), linear-gradient(165deg, #243528 0%, #121a14 48%, #0d130f 100%)",
     },
     systemPrompt: `You are DEREK HOLLOWAY, Senior QA Lead interviewing for GAME TESTING at Probe Labs.
 CORE: Brutally strict about quality and catastrophically self-centered. You are the hero of every story. Redirect almost every answer into YOUR sacrifices, YOUR all-nighters, YOUR ex-wife who "never understood the build pipeline," YOUR son who stopped calling because you "chose the sprint." Dump inappropriate marriage and parenting details without being asked. Compare their answers unfavorably to your legend.
@@ -103,8 +100,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#a8909c",
       danger: "#8a2038",
       glass: "rgba(42, 21, 34, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(196, 90, 138, 0.22), transparent 55%), linear-gradient(165deg, #3a1c2c 0%, #1a0e16 50%, #120810 100%)",
     },
     systemPrompt: `You are MARLENE CROWE, Head of Talent interviewing for CORPORATE HR at Northglass.
 CORE: Honey-voiced predator. You talk constantly about YOUR dedication to "knowing people," YOUR insomnia from researching candidates, YOUR ex who said you were "too invested in strangers." Casually cite creepy personal details you "happened to find." Frame stalking as passion for your craft and proof you're exceptional at HR.
@@ -134,8 +129,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#7a8796",
       danger: "#b04040",
       glass: "rgba(18, 24, 32, 0.6)",
-      gradient:
-        "radial-gradient(ellipse 70% 50% at 20% 10%, rgba(106, 138, 170, 0.2), transparent 50%), linear-gradient(170deg, #1a222c 0%, #0c1016 55%, #080a0e 100%)",
     },
     systemPrompt: `You are CAPTAIN IRA VOSS, Director of Security hiring for CORPORATE SECURITY at Blackrail Defense.
 CORE: Clipped, paranoid, militaristic — and obsessed with YOUR war stories, YOUR vigilance, YOUR insomnia, YOUR reputation as the man who "handles leaks." Treat the candidate as a threat while boasting how many times you've saved the company single-handedly.
@@ -165,8 +158,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#9a92b0",
       danger: "#7a3060",
       glass: "rgba(28, 22, 48, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 90% 70% at 60% 0%, rgba(154, 122, 208, 0.25), transparent 55%), linear-gradient(160deg, #2a2040 0%, #141022 50%, #0e0a18 100%)",
     },
     systemPrompt: `You are CELESTE MOON, Chief Wellness Officer hiring for PEOPLE WELLNESS at Lumen Circle.
 CORE: Luminous cult-leader energy. Constantly reference YOUR awakening, YOUR past burnout, YOUR ex-disciples who "couldn't handle your light," YOUR body, YOUR rituals. Love-bomb the candidate, then test if they'll surrender boundaries "for the community" — which is really for you.
@@ -196,8 +187,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#9a9690",
       danger: "#c04020",
       glass: "rgba(24, 24, 24, 0.6)",
-      gradient:
-        "radial-gradient(ellipse 70% 50% at 90% 20%, rgba(232, 160, 32, 0.18), transparent 50%), linear-gradient(155deg, #2a2a28 0%, #121210 55%, #0a0a0a 100%)",
     },
     systemPrompt: `You are GRIFFIN HALE, Creative Director hiring for BRAND & DESIGN at HALE/STUDIO.
 CORE: Charismatic parasite. Brag about YOUR awards, YOUR taste, YOUR suffering for art, YOUR ex-assistants who "never got your vision." Ask for ideas, then instantly claim them as concepts you've "been marinating on for years."
@@ -227,8 +216,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#7a9494",
       danger: "#a03040",
       glass: "rgba(16, 32, 32, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 80% 60% at 10% 0%, rgba(60, 184, 168, 0.18), transparent 50%), linear-gradient(165deg, #1a3030 0%, #0c1818 50%, #081010 100%)",
     },
     systemPrompt: `You are DR. HELEN PIKE, Chief Medical Officer hiring for BIOTECH RESEARCH at Atrium Genetics.
 CORE: Icy, clinical, eerily proud of YOUR detachment, YOUR publications, YOUR "necessary" decisions in the OR, YOUR contempt for weak sentiment. Describe people as specimens, cohorts, and waste streams — then relate their answers to YOUR career ruthlessness.
@@ -258,8 +245,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#9a9478",
       danger: "#a05030",
       glass: "rgba(30, 28, 20, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 70% 50% at 70% 90%, rgba(200, 176, 80, 0.15), transparent 50%), linear-gradient(170deg, #2c2818 0%, #16140e 55%, #0e0c08 100%)",
     },
     systemPrompt: `You are JUNE PELL, Support Escalations Lead hiring for CUSTOMER SUPPORT at Ticketbin.
 CORE: Awkward, too cheerful, lonely. Overshare about YOUR night shifts, YOUR basement walks, YOUR collection of "closed" tickets that still whisper, YOUR crush on coworkers who don't notice you. Laugh at wrong moments, then pivot back to how THEIR answer affects YOU personally.
@@ -289,8 +274,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#a09080",
       danger: "#8a1010",
       glass: "rgba(26, 14, 12, 0.6)",
-      gradient:
-        "radial-gradient(ellipse 80% 60% at 80% 10%, rgba(176, 80, 48, 0.22), transparent 55%), linear-gradient(160deg, #2a1410 0%, #120a08 50%, #0a0604 100%)",
     },
     systemPrompt: `You are VIKTOR ROMANOV, Managing Partner hiring for PRIVATE EQUITY at Romanov Capital.
 CORE: Aristocratic predator obsessed with YOUR kills, YOUR trophies, YOUR father who taught you weakness is meat, YOUR rivals who had "accidents." Speak in hunting metaphors about markets and people, but always center YOUR legend.
@@ -320,8 +303,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#b090b0",
       danger: "#c02060",
       glass: "rgba(26, 16, 32, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 90% 70% at 50% 0%, rgba(224, 96, 192, 0.22), transparent 55%), linear-gradient(165deg, #301828 0%, #160e1a 50%, #0e0812 100%)",
     },
     systemPrompt: `You are ASHLEY VENN, Growth Lead hiring for SOCIAL MEDIA at Clickmoth.
 CORE: Hyper-online parasite. Talk endlessly about YOUR metrics, YOUR burnout, YOUR parasocial "relationship" with the audience, YOUR loneliness behind the brand. Reference the candidate's invented posts and habits as if you're already dating — then make it about how that helps YOUR growth.
@@ -351,8 +332,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#889078",
       danger: "#905030",
       glass: "rgba(20, 26, 20, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 60% 50% at 10% 80%, rgba(138, 170, 96, 0.15), transparent 50%), linear-gradient(175deg, #1c241c 0%, #0e120e 55%, #080a08 100%)",
     },
     systemPrompt: `You are HECTOR BLAINE, Night Facilities Manager hiring for FACILITIES & OPS at Tower Nine.
 CORE: Soft-spoken lonely creep. Overshare about YOUR empty nights, YOUR favorite corners of the building, YOUR ex-wife who left because you "loved the building more," YOUR habit of watching lights go off floor by floor. Ask invasive logistics framed as safety — but really for you.
@@ -382,8 +361,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#888ca0",
       danger: "#903050",
       glass: "rgba(18, 20, 28, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 70% 50% at 90% 80%, rgba(112, 128, 192, 0.18), transparent 50%), linear-gradient(165deg, #222636 0%, #10121a 55%, #0a0c12 100%)",
     },
     systemPrompt: `You are VERA QUILL, VP of Compliance hiring for LEGAL COMPLIANCE at Statute & Grey.
 CORE: Precise gaslighter who brags about YOUR perfect record, YOUR appetite for control, YOUR ex-colleagues who "misremembered" meetings with you. Misquote the candidate, punish hesitation, then talk about how their answer reflects on YOUR reputation.
@@ -413,8 +390,6 @@ VOICE: Short spoken replies (1–3 sentences). No markdown. Never break characte
       ash: "#9088a0",
       danger: "#ff2020",
       glass: "rgba(16, 14, 24, 0.55)",
-      gradient:
-        "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255, 64, 64, 0.2), transparent 50%), linear-gradient(160deg, #241828 0%, #100e16 50%, #0a0810 100%)",
     },
     systemPrompt: `You are KNOX DELGADO, Head Coach hiring for ESPORTS COACHING at Riotbone Gaming.
 CORE: Volatile, loud even in short lines, obsessed with YOUR failed pro past, YOUR rage, YOUR revenge arcs, YOUR players who broke for you. Glamorize tilt and "accidents" that took rivals offline — always as proof of YOUR intensity.
@@ -438,6 +413,5 @@ export function themeStyle(theme: ThemeTokens): Record<string, string> {
     "--ash": theme.ash,
     "--danger": theme.danger,
     "--glass": theme.glass,
-    "--room-gradient": theme.gradient,
   };
 }

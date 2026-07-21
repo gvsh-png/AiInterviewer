@@ -262,9 +262,6 @@ export default function InterviewRoom({
 
   return (
     <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
-      <div className="grain" aria-hidden />
-      <div className="blinds" aria-hidden />
-      <div className="lamp" aria-hidden />
 
       <header className="topbar">
         <p className="mark">PROBE</p>

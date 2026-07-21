@@ -39,9 +39,6 @@ export default function LoginForm() {
 
   return (
     <div className="room login-room">
-      <div className="grain" aria-hidden />
-      <div className="blinds" aria-hidden />
-      <div className="lamp" aria-hidden />
 
       <main className="login-panel">
         <PersonaAvatar interviewer={host} size="lg" />
