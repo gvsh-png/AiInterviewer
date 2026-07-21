@@ -25,7 +25,7 @@ export function extractPhotoTag(raw: string): {
 export function canSharePhoto(
   turnCount: number,
   lastImageTurn: number,
-  everyN = 10
+  everyN = 5
 ): boolean {
   if (turnCount < everyN) return false;
   return turnCount - lastImageTurn >= everyN;

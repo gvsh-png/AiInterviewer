@@ -14,5 +14,5 @@ export default async function InterviewPage({
   const { id } = await params;
   const interviewer = getInterviewer(id);
   if (!interviewer) notFound();
-  return <InterviewRoom interviewer={interviewer} />;
+  return <InterviewRoom key={interviewer.id} interviewer={interviewer} />;
 }

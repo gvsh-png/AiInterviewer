@@ -1,16 +1,18 @@
-# PROBE — Twisted AI Job Interviewers
+# PROBE — AI Interviewer Chats
 
-Voice interview simulator with a roster of **twisted interviewers** — each with a different job, avatar, voice, color theme, and dangerous personality.
+Social-style voice messaging app with a roster of AI interviewers — each
+with a different job, avatar, voice, color accent, and personality.
 
 ## Features
 
-- **12 interviewers** on the home roster (job + person + avatar)
+- **12 contacts** sorted by the most recent conversation
+- Search, local conversation history, light/dark/system themes, and reset tools
 - Unique **voices** and **color themes** per interviewer
 - Password gate (`SITE_PASSWORD`)
 - Speech-to-text + TTS via OpenRouter
-- Occasional character photo dumps (OpenRouter image gen, ~every 10 turns)
+- Occasional character photo dumps (OpenRouter image gen, at most every 5 turns)
 - Typewriter transcript synced to spoken chunks
-- Restart + Lock + back to roster
+- Responsive mobile inbox and desktop split-pane chat
 
 ## Local run
 
