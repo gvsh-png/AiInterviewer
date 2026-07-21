@@ -418,6 +418,11 @@ button {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes rise-in-solid {
+  from { transform: translateY(12px); }
+  to { transform: translateY(0); }
+}
+
 .derek-meta h2 {
   margin: 0;
   font-family: var(--font-display), Georgia, serif;
@@ -446,7 +451,6 @@ button {
   flex-direction: column;
   gap: 0.85rem;
   padding: 0.5rem 0.15rem 1rem;
-  mask-image: linear-gradient(180deg, transparent, black 8%, black 92%, transparent);
   width: 100%;
   max-width: 100%;
 }
@@ -454,10 +458,18 @@ button {
 .bubble {
   max-width: min(92%, 100%);
   width: 100%;
-  animation: rise-in 0.35s ease-out both;
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
+}
+
+.bubble.you,
+.bubble.thinking {
+  animation: rise-in 0.35s ease-out both;
+}
+
+.bubble.derek {
+  animation: rise-in-solid 0.35s ease-out both;
 }
 
 .bubble.derek {
@@ -504,8 +516,9 @@ button {
 }
 
 .bubble.derek p,
-.bubble.derek .speech-text {
-  color: var(--paper);
+.bubble.derek .speech-text,
+.bubble.derek .speech-visible {
+  color: #ffffff;
   opacity: 1;
 }
 
@@ -519,8 +532,11 @@ button {
   font-style: italic;
 }
 
-.speech-text.revealing {
+.speech-text.revealing,
+.speech-text.revealing .speech-visible {
   min-height: 1.5em;
+  color: #ffffff;
+  opacity: 1;
 }
 
 .speech-caret {

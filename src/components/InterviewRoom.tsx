@@ -347,7 +347,7 @@ export default function InterviewRoom({
                   isLineRevealing(line.id) &&
                   speechReveal ? (
                     <DerekSpeechText
-                      key={`${speechReveal.activeChunk}-${speechReveal.chunkStartedAt}`}
+                      key={speechReveal.lineId}
                       text={speechReveal.fullText}
                       settled={speechReveal.settled}
                       activeChunk={speechReveal.activeChunk}

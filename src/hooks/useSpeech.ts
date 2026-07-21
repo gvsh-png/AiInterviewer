@@ -219,6 +219,7 @@ function loadAudioBlob(
     const url = URL.createObjectURL(blob);
     const audio = new Audio();
     audio.preload = "auto";
+    audio.volume = 1;
     audio.src = url;
     audioRef.current = audio;
 
@@ -232,6 +233,27 @@ function loadAudioBlob(
       reject(err);
     };
 
+    const boostPlayback = async () => {
+      audio.volume = 1;
+      const Ctx =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctx) return;
+
+      try {
+        const ctx = new Ctx();
+        if (ctx.state === "suspended") await ctx.resume();
+        const source = ctx.createMediaElementSource(audio);
+        const gain = ctx.createGain();
+        gain.gain.value = 1.85;
+        source.connect(gain);
+        gain.connect(ctx.destination);
+      } catch {
+        /* fall back to plain element playback */
+      }
+    };
+
     const ready = () => {
       const durationMs =
         Number.isFinite(audio.duration) && audio.duration > 0
@@ -240,21 +262,25 @@ function loadAudioBlob(
 
       resolve({
         durationMs,
-        play: () =>
-          new Promise<void>((endResolve, endReject) => {
-            audio.onended = () => {
-              cleanup();
-              endResolve();
-            };
-            audio.onerror = () => {
-              cleanup();
-              endReject(new Error("audio play failed"));
-            };
-            void audio.play().catch((err) => {
-              cleanup();
-              endReject(err instanceof Error ? err : new Error("play failed"));
+        play: async () => {
+          try {
+            await boostPlayback();
+            await audio.play();
+            await new Promise<void>((endResolve, endReject) => {
+              audio.onended = () => {
+                cleanup();
+                endResolve();
+              };
+              audio.onerror = () => {
+                cleanup();
+                endReject(new Error("audio play failed"));
+              };
             });
-          }),
+          } catch (err) {
+            cleanup();
+            throw err instanceof Error ? err : new Error("play failed");
+          }
+        },
       });
     };
 

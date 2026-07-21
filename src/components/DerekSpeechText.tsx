@@ -60,7 +60,7 @@ export default function DerekSpeechText({
 
   return (
     <p className="speech-text revealing" aria-label={text}>
-      {showing}
+      <span className="speech-visible">{showing}</span>
       {typing || !showing ? <span className="speech-caret" aria-hidden /> : null}
     </p>
   );
