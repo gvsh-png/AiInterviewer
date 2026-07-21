@@ -211,6 +211,14 @@ async function fetchTtsBlob(
   return res.blob();
 }
 
+function isIOSWebKit() {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 function loadAudioBlob(
   blob: Blob,
   audioRef: { current: HTMLAudioElement | null }
@@ -222,8 +230,21 @@ function loadAudioBlob(
     audio.volume = 1;
     audio.src = url;
     audioRef.current = audio;
+    let audioContext: AudioContext | null = null;
+    let sourceNode: MediaElementAudioSourceNode | null = null;
+    let gainNode: GainNode | null = null;
 
     const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
+      sourceNode?.disconnect();
+      gainNode?.disconnect();
+      void audioContext?.close().catch(() => {
+        /* ignore */
+      });
+      sourceNode = null;
+      gainNode = null;
+      audioContext = null;
       URL.revokeObjectURL(url);
       if (audioRef.current === audio) audioRef.current = null;
     };
@@ -235,6 +256,10 @@ function loadAudioBlob(
 
     const boostPlayback = async () => {
       audio.volume = 1;
+      // iOS Safari can truncate MediaElementSource playback or miss `ended`.
+      // Use the plain audio element there and rely on the completion watchdog.
+      if (isIOSWebKit()) return;
+
       const Ctx =
         window.AudioContext ||
         (window as Window & { webkitAudioContext?: typeof AudioContext })
@@ -242,13 +267,13 @@ function loadAudioBlob(
       if (!Ctx) return;
 
       try {
-        const ctx = new Ctx();
-        if (ctx.state === "suspended") await ctx.resume();
-        const source = ctx.createMediaElementSource(audio);
-        const gain = ctx.createGain();
-        gain.gain.value = 1.85;
-        source.connect(gain);
-        gain.connect(ctx.destination);
+        audioContext = new Ctx();
+        if (audioContext.state === "suspended") await audioContext.resume();
+        sourceNode = audioContext.createMediaElementSource(audio);
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 1.85;
+        sourceNode.connect(gainNode);
+        gainNode.connect(audioContext.destination);
       } catch {
         /* fall back to plain element playback */
       }
@@ -263,18 +288,38 @@ function loadAudioBlob(
       resolve({
         durationMs,
         play: async () => {
+          let timeoutId: number | null = null;
           try {
             await boostPlayback();
-            await audio.play();
             await new Promise<void>((endResolve, endReject) => {
-              audio.onended = () => {
+              let settled = false;
+              const settle = (ok: boolean, err?: Error) => {
+                if (settled) return;
+                settled = true;
+                if (timeoutId !== null) window.clearTimeout(timeoutId);
                 cleanup();
-                endResolve();
+                if (ok) endResolve();
+                else endReject(err ?? new Error("audio play failed"));
+              };
+
+              audio.onended = () => {
+                settle(true);
               };
               audio.onerror = () => {
-                cleanup();
-                endReject(new Error("audio play failed"));
+                settle(false, new Error("audio play failed"));
               };
+              const fallbackMs =
+                durationMs > 0
+                  ? Math.min(30000, Math.max(2500, durationMs + 1500))
+                  : 9000;
+              timeoutId = window.setTimeout(() => settle(true), fallbackMs);
+
+              void audio.play().catch((err) => {
+                settle(
+                  false,
+                  err instanceof Error ? err : new Error("play failed")
+                );
+              });
             });
           } catch (err) {
             cleanup();
