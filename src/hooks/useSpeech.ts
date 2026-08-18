@@ -172,7 +172,7 @@ function pickMaleVoice(voices: SpeechSynthesisVoice[]) {
   return ranked[0] ?? null;
 }
 
-/** Split into speakable chunks so first audio can start ASAP. */
+/** Split into speakable chunks so the typewriter can track sentences. */
 export function splitSpeakChunks(text: string): string[] {
   const clean = text.trim();
   if (!clean) return [];
@@ -184,8 +184,7 @@ export function splitSpeakChunks(text: string): string[] {
   let buf = "";
   for (const sentence of sentences) {
     const next = buf ? `${buf} ${sentence}` : sentence;
-    // Keep chunks short so mobile transcript wraps naturally.
-    if (next.length > 72 && buf) {
+    if (next.length > 220 && buf) {
       chunks.push(buf);
       buf = sentence;
     } else {
@@ -221,216 +220,271 @@ function isIOSWebKit() {
 
 function playbackWatchdogMs(durationMs: number, estimatedMs: number) {
   const estimated = Math.max(estimatedMs > 0 ? estimatedMs : 1800, 1400);
-  const durationLooksBogus =
-    durationMs <= 0 || durationMs > estimated * 3;
-  const expected = durationLooksBogus
-    ? estimated
-    : Math.max(durationMs, estimated * 0.8);
-  return Math.min(20000, expected + 900);
+  const durationLooksShort = durationMs > 0 && durationMs < estimated * 0.5;
+  const durationLooksLong = durationMs > estimated * 3;
+  const expected =
+    durationMs > 0 && !durationLooksShort && !durationLooksLong
+      ? Math.max(durationMs, estimated * 0.8)
+      : estimated;
+  return Math.min(60000, expected + 1200);
 }
 
-function loadAudioBlob(
-  blob: Blob,
-  audioRef: { current: HTMLAudioElement | null }
-): Promise<{ durationMs: number; play: (estimatedMs?: number) => Promise<void> }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio();
-    audio.preload = "auto";
-    audio.volume = 1;
-    audio.src = url;
-    audioRef.current = audio;
-    let audioContext: AudioContext | null = null;
-    let sourceNode: MediaElementAudioSourceNode | null = null;
-    let gainNode: GainNode | null = null;
-    let readyCalled = false;
-    let metaTimer = 0;
+type PersistentPlayer = {
+  audio: HTMLAudioElement;
+  ctx: AudioContext | null;
+  source: MediaElementAudioSourceNode | null;
+  gain: GainNode | null;
+  url: string | null;
+  boostFailed: boolean;
+};
 
-    const cleanup = () => {
+function createPlayer(): PersistentPlayer {
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.volume = 1;
+  return {
+    audio,
+    ctx: null,
+    source: null,
+    gain: null,
+    url: null,
+    boostFailed: false,
+  };
+}
+
+function revokePlayerUrl(player: PersistentPlayer) {
+  if (!player.url) return;
+  try {
+    URL.revokeObjectURL(player.url);
+  } catch {
+    /* ignore */
+  }
+  player.url = null;
+}
+
+function stopPlayer(player: PersistentPlayer | null, destroyGraph: boolean) {
+  if (!player) return;
+  try {
+    player.audio.pause();
+  } catch {
+    /* ignore */
+  }
+  try {
+    player.audio.dispatchEvent(new Event("ended"));
+  } catch {
+    /* ignore */
+  }
+  player.audio.removeAttribute("src");
+  try {
+    player.audio.load();
+  } catch {
+    /* ignore */
+  }
+  revokePlayerUrl(player);
+  if (destroyGraph) {
+    try {
+      player.source?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    try {
+      player.gain?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    void player.ctx?.close().catch(() => {
+      /* ignore */
+    });
+    player.source = null;
+    player.gain = null;
+    player.ctx = null;
+  }
+}
+
+async function attachBoost(player: PersistentPlayer) {
+  if (isIOSWebKit() || player.source || player.boostFailed) {
+    if (player.ctx?.state === "suspended") await player.ctx.resume();
+    return;
+  }
+
+  const Ctx =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctx) return;
+
+  try {
+    player.ctx = new Ctx();
+    if (player.ctx.state === "suspended") await player.ctx.resume();
+    player.source = player.ctx.createMediaElementSource(player.audio);
+    player.gain = player.ctx.createGain();
+    player.gain.gain.value = 1.85;
+    player.source.connect(player.gain);
+    player.gain.connect(player.ctx.destination);
+  } catch {
+    player.boostFailed = true;
+  }
+}
+
+function playClip(
+  player: PersistentPlayer,
+  blob: Blob,
+  estimatedMs: number,
+  onReady?: (durationMs: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    revokePlayerUrl(player);
+    const url = URL.createObjectURL(blob);
+    player.url = url;
+    const audio = player.audio;
+    audio.volume = 1;
+    audio.preload = "auto";
+    audio.src = url;
+
+    let settled = false;
+    let startedPlayback = false;
+    let timeoutId: number | null = null;
+    let pollId: number | null = null;
+    let metaTimer = 0;
+    let durationMs = 0;
+    let lastTime = 0;
+    let lastAdvanceAt = Date.now();
+    let playStartedAt = Date.now();
+    const listeners = new AbortController();
+
+    const clearTimers = () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (pollId !== null) window.clearInterval(pollId);
+      window.clearTimeout(metaTimer);
+      timeoutId = null;
+      pollId = null;
+    };
+
+    const releaseClip = () => {
+      listeners.abort();
       audio.onended = null;
       audio.onerror = null;
       audio.onpause = null;
       audio.ontimeupdate = null;
       audio.onplaying = null;
-      try {
-        sourceNode?.disconnect();
-      } catch {
-        /* ignore */
-      }
-      try {
-        gainNode?.disconnect();
-      } catch {
-        /* ignore */
-      }
-      void audioContext?.close().catch(() => {
-        /* ignore */
-      });
-      sourceNode = null;
-      gainNode = null;
-      audioContext = null;
-      try {
-        URL.revokeObjectURL(url);
-      } catch {
-        /* ignore */
-      }
-      if (audioRef.current === audio) audioRef.current = null;
+      audio.onloadedmetadata = null;
+      if (player.url === url) revokePlayerUrl(player);
     };
 
-    const fail = (err: Error) => {
+    const settle = (ok: boolean, err?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimers();
       try {
-        cleanup();
+        releaseClip();
       } catch {
-        /* ignore */
+        /* never block unlocking after speech */
       }
-      reject(err);
+      if (ok) resolve();
+      else reject(err ?? new Error("audio play failed"));
     };
 
-    const boostPlayback = async () => {
-      audio.volume = 1;
-      // iOS Safari can truncate MediaElementSource playback or miss `ended`.
-      // Use the plain audio element there and rely on the completion watchdog.
-      if (isIOSWebKit()) return;
-
-      const Ctx =
-        window.AudioContext ||
-        (window as Window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-      if (!Ctx) return;
-
-      try {
-        audioContext = new Ctx();
-        if (audioContext.state === "suspended") await audioContext.resume();
-        sourceNode = audioContext.createMediaElementSource(audio);
-        gainNode = audioContext.createGain();
-        gainNode.gain.value = 1.85;
-        sourceNode.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-      } catch {
-        /* fall back to plain element playback */
+    const nearEnd = () => {
+      if (audio.ended) return true;
+      const dur = audio.duration;
+      const t = audio.currentTime;
+      const ms =
+        Number.isFinite(dur) && dur > 0 ? dur * 1000 : durationMs;
+      const reliable = ms > 0 && (estimatedMs <= 0 || ms >= estimatedMs * 0.5);
+      if (!reliable || !Number.isFinite(dur) || dur <= 0 || t < 0.08) {
+        return false;
       }
+      return t >= dur - 0.2;
     };
 
-    const ready = () => {
-      if (readyCalled) return;
-      readyCalled = true;
-      window.clearTimeout(metaTimer);
+    const stallCheck = () => {
+      if (settled) return;
+      const t = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      if (t > lastTime + 0.03) {
+        lastTime = t;
+        lastAdvanceAt = Date.now();
+      }
+      if (audio.ended || nearEnd()) {
+        settle(true);
+        return;
+      }
+      // Sentence pauses in Kokoro/OpenRouter audio are often 300–800ms.
+      // Only finish if we are actually at the end, or far past the estimate
+      // with no further progress.
+      const stalledFor = Date.now() - lastAdvanceAt;
+      const playedFor = Date.now() - playStartedAt;
+      const budget = playbackWatchdogMs(durationMs, estimatedMs);
+      if (nearEnd() && stalledFor >= 200) {
+        settle(true);
+        return;
+      }
+      if (playedFor >= budget && stalledFor >= 1000) settle(true);
+      else if (playedFor >= Math.max(budget + 8000, 60000)) settle(true);
+    };
 
-      const durationMs =
+    const startPlayback = async () => {
+      if (startedPlayback || settled) return;
+      startedPlayback = true;
+      durationMs =
         Number.isFinite(audio.duration) && audio.duration > 0
           ? audio.duration * 1000
           : 0;
-
-      resolve({
-        durationMs,
-        play: async (estimatedMs = 0) => {
-          let timeoutId: number | null = null;
-          let pollId: number | null = null;
-          try {
-            await boostPlayback();
-            await new Promise<void>((endResolve, endReject) => {
-              let settled = false;
-              let lastTime = 0;
-              let lastAdvanceAt = Date.now();
-              const playStartedAt = Date.now();
-              const clearTimers = () => {
-                if (timeoutId !== null) window.clearTimeout(timeoutId);
-                if (pollId !== null) window.clearInterval(pollId);
-                timeoutId = null;
-                pollId = null;
-              };
-              const settle = (ok: boolean, err?: Error) => {
-                if (settled) return;
-                settled = true;
-                clearTimers();
-                try {
-                  cleanup();
-                } catch {
-                  /* never block unlocking after speech */
-                }
-                if (ok) endResolve();
-                else endReject(err ?? new Error("audio play failed"));
-              };
-
-              const nearEnd = () => {
-                if (audio.ended) return true;
-                const dur = audio.duration;
-                const t = audio.currentTime;
-                if (!Number.isFinite(dur) || dur <= 0 || t < 0.05) return false;
-                return t >= dur - 0.15;
-              };
-
-              const stallCheck = () => {
-                if (settled) return;
-                const t = Number.isFinite(audio.currentTime)
-                  ? audio.currentTime
-                  : 0;
-                if (t > lastTime + 0.03) {
-                  lastTime = t;
-                  lastAdvanceAt = Date.now();
-                }
-                if (audio.ended || nearEnd()) {
-                  settle(true);
-                  return;
-                }
-                const stalledFor = Date.now() - lastAdvanceAt;
-                const playedFor = Date.now() - playStartedAt;
-                const budget = playbackWatchdogMs(durationMs, estimatedMs);
-                // Prefer progress stall over `ended` — Safari often skips it
-                // after the clip is actually done, which left the mic locked.
-                if (lastTime > 0.05 && stalledFor >= 400) {
-                  settle(true);
-                  return;
-                }
-                if (playedFor >= budget && stalledFor >= 350) settle(true);
-                else if (playedFor >= 20000) settle(true);
-              };
-
-              audio.addEventListener("ended", () => settle(true));
-              audio.addEventListener("error", () => {
-                settle(false, new Error("audio play failed"));
-              });
-              audio.addEventListener("playing", () => {
-                lastAdvanceAt = Date.now();
-              });
-              audio.addEventListener("timeupdate", stallCheck);
-              audio.addEventListener("pause", () => {
-                if (audio.ended || nearEnd()) settle(true);
-              });
-
-              timeoutId = window.setTimeout(
-                stallCheck,
-                playbackWatchdogMs(durationMs, estimatedMs)
-              );
-              pollId = window.setInterval(stallCheck, 80);
-
-              void audio.play().catch((err) => {
-                settle(
-                  false,
-                  err instanceof Error ? err : new Error("play failed")
-                );
-              });
-            });
-          } catch (err) {
-            try {
-              cleanup();
-            } catch {
-              /* ignore */
-            }
-            throw err instanceof Error ? err : new Error("play failed");
-          }
-        },
-      });
+      lastAdvanceAt = Date.now();
+      playStartedAt = Date.now();
+      try {
+        await attachBoost(player);
+        if (settled) return;
+        onReady?.(durationMs || estimatedMs);
+        audio.addEventListener("ended", () => settle(true), {
+          signal: listeners.signal,
+        });
+        audio.addEventListener(
+          "error",
+          () => settle(false, new Error("audio play failed")),
+          { signal: listeners.signal }
+        );
+        audio.addEventListener(
+          "playing",
+          () => {
+            lastAdvanceAt = Date.now();
+          },
+          { signal: listeners.signal }
+        );
+        audio.addEventListener("timeupdate", stallCheck, {
+          signal: listeners.signal,
+        });
+        audio.addEventListener(
+          "pause",
+          () => {
+            if (audio.ended || nearEnd()) settle(true);
+          },
+          { signal: listeners.signal }
+        );
+        timeoutId = window.setTimeout(
+          stallCheck,
+          playbackWatchdogMs(durationMs, estimatedMs)
+        );
+        pollId = window.setInterval(stallCheck, 80);
+        await audio.play();
+      } catch (err) {
+        settle(
+          false,
+          err instanceof Error ? err : new Error("play failed")
+        );
+      }
     };
 
     metaTimer = window.setTimeout(() => {
-      if (audio.readyState >= 1) ready();
-      else fail(new Error("audio metadata timeout"));
+      if (audio.readyState >= 1) void startPlayback();
+      else settle(false, new Error("audio metadata timeout"));
     }, 6000);
 
-    if (audio.readyState >= 1) ready();
+    if (audio.readyState >= 1) void startPlayback();
     else {
-      audio.onloadedmetadata = ready;
-      audio.onerror = () => fail(new Error("audio load failed"));
+      audio.onloadedmetadata = () => {
+        void startPlayback();
+      };
+      audio.onerror = () => settle(false, new Error("audio load failed"));
     }
   });
 }
@@ -461,10 +515,15 @@ export function useSpeechSynthesis() {
   const [speaking, setSpeaking] = useState(false);
   const [preparingSpeech, setPreparingSpeech] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playerRef = useRef<PersistentPlayer | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Map<string, Blob>>(new Map());
   const generationRef = useRef(0);
+
+  const getPlayer = useCallback(() => {
+    if (!playerRef.current) playerRef.current = createPlayer();
+    return playerRef.current;
+  }, []);
 
   useEffect(() => {
     if (!browserSupported) return;
@@ -478,10 +537,8 @@ export function useSpeechSynthesis() {
       window.speechSynthesis.removeEventListener("voiceschanged", load);
       window.speechSynthesis.cancel();
       abortRef.current?.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopPlayer(playerRef.current, true);
+      playerRef.current = null;
     };
   }, [browserSupported]);
 
@@ -490,13 +547,7 @@ export function useSpeechSynthesis() {
   }, [browserSupported]);
 
   const stopAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.onended = null;
-      audioRef.current.onerror = null;
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current = null;
-    }
+    stopPlayer(playerRef.current, false);
   }, []);
 
   const speakBrowser = useCallback(
@@ -531,7 +582,7 @@ export function useSpeechSynthesis() {
         utterance.onerror = finish;
         watchdog = window.setTimeout(
           finish,
-          Math.min(20000, Math.max(3000, text.split(/\s+/).length * 420))
+          Math.min(60000, Math.max(4000, text.split(/\s+/).length * 420))
         );
         try {
           window.speechSynthesis.speak(utterance);
@@ -546,15 +597,10 @@ export function useSpeechSynthesis() {
     const clean = text.trim();
     if (!clean) return;
     try {
-      const chunks = splitSpeakChunks(clean);
-      await Promise.all(
-        chunks.map(async (chunk) => {
-          const key = `${interviewerId || "default"}:${chunk}`;
-          if (cacheRef.current.has(key)) return;
-          const blob = await fetchTtsBlob(chunk, undefined, interviewerId);
-          cacheRef.current.set(key, blob);
-        })
-      );
+      const key = `${interviewerId || "default"}:${clean}`;
+      if (cacheRef.current.has(key)) return;
+      const blob = await fetchTtsBlob(clean, undefined, interviewerId);
+      cacheRef.current.set(key, blob);
     } catch {
       /* prefetch is best-effort */
     }
@@ -570,13 +616,13 @@ export function useSpeechSynthesis() {
       const abort = new AbortController();
       abortRef.current = abort;
       const interviewerId = options?.interviewerId;
+      const chunkTimers: number[] = [];
 
       stopBrowser();
       stopAudio();
       setPreparingSpeech(true);
       setSpeaking(true);
 
-      const chunks = splitSpeakChunks(clean);
       let chunkStarted = false;
       let didFinish = false;
       let hardStop = 0;
@@ -585,6 +631,7 @@ export function useSpeechSynthesis() {
         if (didFinish) return;
         didFinish = true;
         window.clearTimeout(hardStop);
+        chunkTimers.forEach((id) => window.clearTimeout(id));
         if (generation !== generationRef.current) return;
         setPreparingSpeech(false);
         setSpeaking(false);
@@ -603,44 +650,48 @@ export function useSpeechSynthesis() {
       );
 
       try {
-        const blobPromises = chunks.map((chunk) => {
-          const key = `${interviewerId || "default"}:${chunk}`;
-          const cached = cacheRef.current.get(key);
-          if (cached) return Promise.resolve(cached);
-          return fetchTtsBlob(chunk, abort.signal, interviewerId).then(
-            (blob) => {
-              cacheRef.current.set(key, blob);
-              return blob;
-            }
-          );
-        });
+        const key = `${interviewerId || "default"}:${clean}`;
+        let blob = cacheRef.current.get(key);
+        if (!blob) {
+          blob = await fetchTtsBlob(clean, abort.signal, interviewerId);
+          cacheRef.current.set(key, blob);
+        }
+        if (generation !== generationRef.current) return;
 
-        for (let i = 0; i < chunks.length; i += 1) {
+        const estimatedMs = Math.max(1400, clean.split(/\s+/).length * 380);
+        const player = getPlayer();
+        const visual = splitSpeakChunks(clean);
+
+        await playClip(player, blob, estimatedMs, (durationMs) => {
           if (generation !== generationRef.current) return;
-          const blob = await blobPromises[i]!;
-          if (generation !== generationRef.current) return;
-
-          const settledText = chunks.slice(0, i).join(" ");
-          const chunk = chunks[i]!;
-          const revealedText = chunks.slice(0, i + 1).join(" ");
-
-          const estimatedMs = Math.max(900, chunk.split(/\s+/).length * 320);
-          const loaded = await loadAudioBlob(blob, audioRef);
-          if (generation !== generationRef.current) return;
-
           chunkStarted = true;
           setPreparingSpeech(false);
-          options?.onChunkStart?.({
-            index: i,
-            total: chunks.length,
-            chunk,
-            settledText,
-            revealedText,
-            durationMs: loaded.durationMs || estimatedMs,
+          const total = durationMs || estimatedMs;
+          const totalChars =
+            visual.reduce((sum, chunk) => sum + chunk.length, 0) || 1;
+          let delay = 0;
+          visual.forEach((chunk, i) => {
+            const durationShare = Math.max(
+              400,
+              total * (chunk.length / totalChars)
+            );
+            const startAt = delay;
+            delay += durationShare;
+            const kick = () => {
+              if (generation !== generationRef.current) return;
+              options?.onChunkStart?.({
+                index: i,
+                total: visual.length,
+                chunk,
+                settledText: visual.slice(0, i).join(" "),
+                revealedText: visual.slice(0, i + 1).join(" "),
+                durationMs: durationShare,
+              });
+            };
+            if (i === 0) kick();
+            else chunkTimers.push(window.setTimeout(kick, startAt));
           });
-
-          await loaded.play(estimatedMs);
-        }
+        });
       } catch {
         if (generation !== generationRef.current) return;
         if (abort.signal.aborted) return;
@@ -660,7 +711,7 @@ export function useSpeechSynthesis() {
         finish();
       }
     },
-    [speakBrowser, stopAudio, stopBrowser]
+    [getPlayer, speakBrowser, stopAudio, stopBrowser]
   );
 
   const cancel = useCallback(() => {
