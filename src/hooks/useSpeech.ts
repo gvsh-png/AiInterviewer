@@ -219,10 +219,20 @@ function isIOSWebKit() {
   );
 }
 
+function playbackWatchdogMs(durationMs: number, estimatedMs: number) {
+  const estimated = Math.max(estimatedMs > 0 ? estimatedMs : 1800, 1400);
+  const durationLooksBogus =
+    durationMs <= 0 || durationMs > estimated * 3;
+  const expected = durationLooksBogus
+    ? estimated
+    : Math.max(durationMs, estimated * 0.8);
+  return Math.min(20000, expected + 900);
+}
+
 function loadAudioBlob(
   blob: Blob,
   audioRef: { current: HTMLAudioElement | null }
-): Promise<{ durationMs: number; play: () => Promise<void> }> {
+): Promise<{ durationMs: number; play: (estimatedMs?: number) => Promise<void> }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio();
@@ -233,24 +243,45 @@ function loadAudioBlob(
     let audioContext: AudioContext | null = null;
     let sourceNode: MediaElementAudioSourceNode | null = null;
     let gainNode: GainNode | null = null;
+    let readyCalled = false;
+    let metaTimer = 0;
 
     const cleanup = () => {
       audio.onended = null;
       audio.onerror = null;
-      sourceNode?.disconnect();
-      gainNode?.disconnect();
+      audio.onpause = null;
+      audio.ontimeupdate = null;
+      audio.onplaying = null;
+      try {
+        sourceNode?.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        gainNode?.disconnect();
+      } catch {
+        /* ignore */
+      }
       void audioContext?.close().catch(() => {
         /* ignore */
       });
       sourceNode = null;
       gainNode = null;
       audioContext = null;
-      URL.revokeObjectURL(url);
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* ignore */
+      }
       if (audioRef.current === audio) audioRef.current = null;
     };
 
     const fail = (err: Error) => {
-      cleanup();
+      try {
+        cleanup();
+      } catch {
+        /* ignore */
+      }
       reject(err);
     };
 
@@ -280,6 +311,10 @@ function loadAudioBlob(
     };
 
     const ready = () => {
+      if (readyCalled) return;
+      readyCalled = true;
+      window.clearTimeout(metaTimer);
+
       const durationMs =
         Number.isFinite(audio.duration) && audio.duration > 0
           ? audio.duration * 1000
@@ -287,32 +322,86 @@ function loadAudioBlob(
 
       resolve({
         durationMs,
-        play: async () => {
+        play: async (estimatedMs = 0) => {
           let timeoutId: number | null = null;
+          let pollId: number | null = null;
           try {
             await boostPlayback();
             await new Promise<void>((endResolve, endReject) => {
               let settled = false;
+              let lastTime = 0;
+              let lastAdvanceAt = Date.now();
+              const playStartedAt = Date.now();
+              const clearTimers = () => {
+                if (timeoutId !== null) window.clearTimeout(timeoutId);
+                if (pollId !== null) window.clearInterval(pollId);
+                timeoutId = null;
+                pollId = null;
+              };
               const settle = (ok: boolean, err?: Error) => {
                 if (settled) return;
                 settled = true;
-                if (timeoutId !== null) window.clearTimeout(timeoutId);
-                cleanup();
+                clearTimers();
+                try {
+                  cleanup();
+                } catch {
+                  /* never block unlocking after speech */
+                }
                 if (ok) endResolve();
                 else endReject(err ?? new Error("audio play failed"));
               };
 
-              audio.onended = () => {
-                settle(true);
+              const nearEnd = () => {
+                if (audio.ended) return true;
+                const dur = audio.duration;
+                const t = audio.currentTime;
+                if (!Number.isFinite(dur) || dur <= 0 || t < 0.05) return false;
+                return t >= dur - 0.15;
               };
-              audio.onerror = () => {
+
+              const stallCheck = () => {
+                if (settled) return;
+                const t = Number.isFinite(audio.currentTime)
+                  ? audio.currentTime
+                  : 0;
+                if (t > lastTime + 0.03) {
+                  lastTime = t;
+                  lastAdvanceAt = Date.now();
+                }
+                if (audio.ended || nearEnd()) {
+                  settle(true);
+                  return;
+                }
+                const stalledFor = Date.now() - lastAdvanceAt;
+                const playedFor = Date.now() - playStartedAt;
+                const budget = playbackWatchdogMs(durationMs, estimatedMs);
+                // Prefer progress stall over `ended` — Safari often skips it
+                // after the clip is actually done, which left the mic locked.
+                if (lastTime > 0.05 && stalledFor >= 400) {
+                  settle(true);
+                  return;
+                }
+                if (playedFor >= budget && stalledFor >= 350) settle(true);
+                else if (playedFor >= 20000) settle(true);
+              };
+
+              audio.addEventListener("ended", () => settle(true));
+              audio.addEventListener("error", () => {
                 settle(false, new Error("audio play failed"));
-              };
-              const fallbackMs =
-                durationMs > 0
-                  ? Math.min(30000, Math.max(2500, durationMs + 1500))
-                  : 9000;
-              timeoutId = window.setTimeout(() => settle(true), fallbackMs);
+              });
+              audio.addEventListener("playing", () => {
+                lastAdvanceAt = Date.now();
+              });
+              audio.addEventListener("timeupdate", stallCheck);
+              audio.addEventListener("pause", () => {
+                if (audio.ended || nearEnd()) settle(true);
+              });
+
+              timeoutId = window.setTimeout(
+                stallCheck,
+                playbackWatchdogMs(durationMs, estimatedMs)
+              );
+              pollId = window.setInterval(stallCheck, 80);
 
               void audio.play().catch((err) => {
                 settle(
@@ -322,12 +411,21 @@ function loadAudioBlob(
               });
             });
           } catch (err) {
-            cleanup();
+            try {
+              cleanup();
+            } catch {
+              /* ignore */
+            }
             throw err instanceof Error ? err : new Error("play failed");
           }
         },
       });
     };
+
+    metaTimer = window.setTimeout(() => {
+      if (audio.readyState >= 1) ready();
+      else fail(new Error("audio metadata timeout"));
+    }, 6000);
 
     if (audio.readyState >= 1) ready();
     else {
@@ -404,9 +502,18 @@ export function useSpeechSynthesis() {
   const speakBrowser = useCallback(
     (text: string): Promise<void> =>
       new Promise((resolve) => {
-        if (!browserSupported || !text.trim()) {
+        let settled = false;
+        let watchdog = 0;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(watchdog);
           setSpeaking(false);
           resolve();
+        };
+
+        if (!browserSupported || !text.trim()) {
+          finish();
           return;
         }
         stopAudio();
@@ -417,14 +524,20 @@ export function useSpeechSynthesis() {
         utterance.rate = 0.92;
         utterance.pitch = 0.68;
         utterance.volume = 1;
-        utterance.onstart = () => setSpeaking(true);
-        const finish = () => {
-          setSpeaking(false);
-          resolve();
+        utterance.onstart = () => {
+          if (!settled) setSpeaking(true);
         };
         utterance.onend = finish;
         utterance.onerror = finish;
-        window.speechSynthesis.speak(utterance);
+        watchdog = window.setTimeout(
+          finish,
+          Math.min(20000, Math.max(3000, text.split(/\s+/).length * 420))
+        );
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          finish();
+        }
       }),
     [browserSupported, stopAudio, voices]
   );
@@ -465,13 +578,29 @@ export function useSpeechSynthesis() {
 
       const chunks = splitSpeakChunks(clean);
       let chunkStarted = false;
+      let didFinish = false;
+      let hardStop = 0;
 
       const finish = () => {
+        if (didFinish) return;
+        didFinish = true;
+        window.clearTimeout(hardStop);
         if (generation !== generationRef.current) return;
         setPreparingSpeech(false);
         setSpeaking(false);
         options?.onComplete?.();
       };
+
+      hardStop = window.setTimeout(
+        () => {
+          if (generation !== generationRef.current) return;
+          abort.abort();
+          stopAudio();
+          stopBrowser();
+          finish();
+        },
+        Math.min(90000, Math.max(10000, clean.split(/\s+/).length * 480 + 4000))
+      );
 
       try {
         const blobPromises = chunks.map((chunk) => {
@@ -510,17 +639,11 @@ export function useSpeechSynthesis() {
             durationMs: loaded.durationMs || estimatedMs,
           });
 
-          await loaded.play();
+          await loaded.play(estimatedMs);
         }
-
-        finish();
       } catch {
         if (generation !== generationRef.current) return;
-        if (abort.signal.aborted) {
-          setPreparingSpeech(false);
-          setSpeaking(false);
-          return;
-        }
+        if (abort.signal.aborted) return;
         setPreparingSpeech(false);
         if (!chunkStarted) {
           options?.onChunkStart?.({
@@ -533,6 +656,7 @@ export function useSpeechSynthesis() {
           });
         }
         await speakBrowser(clean);
+      } finally {
         finish();
       }
     },

@@ -58,7 +58,8 @@ export default function InterviewRoom({
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
-  const inputLocked = busy || speaking || preparingSpeech;
+  const themTalking = speaking && speechReveal?.complete !== true;
+  const inputLocked = busy || preparingSpeech || themTalking;
   const showThinking = busy || preparingSpeech;
 
   useEffect(() => {
@@ -139,7 +140,7 @@ export default function InterviewRoom({
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy || speaking || preparingSpeech) return;
+      if (!text || busy || preparingSpeech || themTalking) return;
 
       stopListen();
       setError(null);
@@ -204,7 +205,7 @@ export default function InterviewRoom({
     },
     [
       busy,
-      speaking,
+      themTalking,
       preparingSpeech,
       lines,
       messages,
@@ -331,7 +332,7 @@ export default function InterviewRoom({
             <PersonaAvatar
               interviewer={interviewer}
               size="lg"
-              speaking={speaking}
+              speaking={themTalking}
               listening={listening}
             />
             <div className="derek-meta">
@@ -427,7 +428,7 @@ export default function InterviewRoom({
                   ? "Listening"
                   : showThinking
                     ? "Wait…"
-                    : speaking
+                    : themTalking
                       ? `${firstName} talking…`
                       : "Speak"}
               </button>
@@ -445,7 +446,7 @@ export default function InterviewRoom({
                   placeholder={
                     showThinking
                       ? interviewer.thinkingLine
-                      : speaking
+                      : themTalking
                         ? `Wait until ${firstName} finishes…`
                         : "Or type your answer…"
                   }
