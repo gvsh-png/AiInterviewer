@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { getInterviewer } from "@/lib/interviewers";
 import {
-  assignRandomContact,
+  assignNextStoryContact,
   getContactsSnapshot,
   parseContactsSnapshot,
   subscribeToContacts,
@@ -14,39 +14,56 @@ import {
 import {
   EMPTY_SNAPSHOT,
   activeContact,
-  aftermathLine,
-  briefingForRound,
-  campaignJobs,
   completedContacts,
-  epilogue,
   getCampaignSnapshot,
-  jobHook,
+  meetPage,
+  pagesForChapter,
   parseCampaignSnapshot,
+  reconcileCampaign,
   subscribeToCampaign,
   totalRounds,
   updateCampaign,
+  type PanelArt,
+  type StoryPage,
 } from "@/lib/campaign";
-import { coverJobLine } from "@/lib/cover";
-import { verdictLabel } from "@/lib/verdict";
 import PersonaAvatar from "@/components/PersonaAvatar";
+import MessengerNav from "@/components/MessengerNav";
 
-function StoryFrame({
-  kicker,
-  title,
-  children,
+function StoryArt({ art }: { art: PanelArt }) {
+  return <div className={`story-art art-${art}`} aria-hidden />;
+}
+
+function StoryStrip({
+  page,
+  person,
 }: {
-  kicker: string;
-  title: string;
-  children: ReactNode;
+  page: StoryPage;
+  person?: ReturnType<typeof getInterviewer>;
 }) {
+  const [wide, left, right] = page.frames;
   return (
-    <section className="story-desk">
-      <div className="story-copy">
-        <p className="app-kicker">{kicker}</p>
-        <h2>{title}</h2>
-        {children}
+    <div className="story-strip">
+      <article className="story-frame wide">
+        {person ? (
+          <div className="story-art art-portrait">
+            <PersonaAvatar interviewer={person} size="lg" />
+          </div>
+        ) : (
+          <StoryArt art={wide.art} />
+        )}
+        <p className="story-caption">{wide.text}</p>
+      </article>
+      <div className="story-strip-lower">
+        <article className="story-frame">
+          <StoryArt art={left.art} />
+          <p className="story-caption">{left.text}</p>
+        </article>
+        <article className="story-frame">
+          <StoryArt art={right.art} />
+          <p className="story-caption">{right.text}</p>
+        </article>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -72,162 +89,177 @@ export default function StoryDesk() {
     [contactsRaw]
   );
 
+  useEffect(() => {
+    reconcileCampaign(contacts);
+  }, [contacts, campaignRaw]);
+
   const done = completedContacts(contacts);
   const current = activeContact(contacts);
   const remaining = unusedInterviewers().length;
-  const nextRound = Math.min(totalRounds(), done.length + 1);
-  const briefing = briefingForRound(nextRound);
-  const jobs = campaignJobs();
   const currentPerson = current
     ? getInterviewer(current.interviewerId)
     : null;
   const last = done[0] ?? null;
   const lastPerson = last ? getInterviewer(last.interviewerId) : null;
-  const ended = remaining === 0 && !current && done.length > 0;
-  const ending = ended ? epilogue(contacts) : null;
 
-  const dispatch = (job: string) => {
-    if (busy) return;
-    setBusy(true);
-    const contact = assignRandomContact(job);
-    updateCampaign({ introDone: true, playerJob: job });
-    setBusy(false);
-    if (contact) router.push(`/interview/${contact.interviewerId}`);
+  const pages =
+    campaign.chapter === "meet" && currentPerson && current
+      ? [meetPage(currentPerson.name, current.appliedJob)]
+      : pagesForChapter(campaign.chapter, contacts);
+
+  const panel = Math.min(campaign.panel, Math.max(0, pages.length - 1));
+  const page = pages[panel]!;
+  const isLast = panel >= pages.length - 1;
+  const portraitPerson =
+    campaign.chapter === "meet"
+      ? currentPerson
+      : campaign.chapter === "aftermath"
+        ? lastPerson
+        : undefined;
+
+  const totalStoryPages =
+    campaign.chapter === "intro"
+      ? pages.length
+      : campaign.chapter === "ending"
+        ? pages.length
+        : pages.length;
+  const progressLabel = `${panel + 1} / ${totalStoryPages}`;
+  const roundHint =
+    campaign.chapter === "intro"
+      ? "Prologue"
+      : campaign.chapter === "ending"
+        ? "Ending"
+        : `Round ${Math.min(totalRounds(), done.length + (current ? 1 : remaining > 0 ? 1 : 0))} of ${totalRounds()}`;
+
+  const continueLabel = () => {
+    if (!isLast) return "Continue";
+    switch (campaign.chapter) {
+      case "intro":
+        return "Begin";
+      case "briefing":
+        return "See who they sent";
+      case "meet":
+        return "Open the chat";
+      case "aftermath":
+        return remaining > 0 ? "The next hour" : "Read the ending";
+      case "ending":
+        return "Back to chats";
+    }
   };
 
-  if (!campaign.introDone) {
-    return (
-      <StoryFrame kicker="PROBE" title="They found your name">
-        <p>
-          This is not a job board. It is a closed loop. You apply once. The
-          building sends interviewers. They will not tell you what they are.
-          You will sit through the hour anyway.
-        </p>
-        <p>
-          Twelve contacts. One file. Letters at the end of each round. The
-          chats are how they reach you.
-        </p>
-        <div className="story-actions">
-          <button
-            type="button"
-            className="start-chat-button"
-            onClick={() => updateCampaign({ introDone: true })}
-          >
-            I want in
-          </button>
-        </div>
-      </StoryFrame>
-    );
-  }
+  const goBack = () => {
+    if (panel <= 0) return;
+    updateCampaign({ panel: panel - 1 });
+  };
 
-  if (!campaign.playerJob) {
-    return (
-      <StoryFrame
-        kicker="Application"
-        title="What did you tell them you wanted?"
-      >
-        <p>
-          Pick a cover. They may honor it. They may send you to whoever is
-          free. Either way, this is the role on your file.
-        </p>
-        <div className="job-list">
-          {jobs.map((job) => (
-            <button
-              key={job}
-              type="button"
-              className="job-choice"
-              disabled={busy}
-              onClick={() => dispatch(job)}
-            >
-              <strong>{job}</strong>
-              <span>{jobHook(job)}</span>
-            </button>
-          ))}
-        </div>
-      </StoryFrame>
-    );
-  }
+  const advance = () => {
+    if (busy) return;
+    if (!isLast) {
+      updateCampaign({ panel: panel + 1 });
+      return;
+    }
 
-  if (ended && ending) {
-    return (
-      <StoryFrame kicker={ending.kicker} title={ending.title}>
-        <p>{ending.body}</p>
-        <p className="story-meta">
-          {done.length} rounds · {campaign.playerJob}
-        </p>
-        <div className="story-actions">
-          <Link href="/" className="start-chat-button">
-            Back to chats
-          </Link>
-        </div>
-      </StoryFrame>
-    );
-  }
+    if (campaign.chapter === "intro") {
+      setBusy(true);
+      assignNextStoryContact();
+      updateCampaign({ chapter: "briefing", panel: 0 });
+      setBusy(false);
+      return;
+    }
 
-  if (current && currentPerson) {
-    return (
-      <StoryFrame kicker={briefing.kicker} title={briefing.title}>
-        <p>{briefing.body}</p>
-        <div className="story-contact">
-          <PersonaAvatar interviewer={currentPerson} size="md" />
-          <div>
-            <strong>{currentPerson.name}</strong>
-            <span>{coverJobLine(current.appliedJob)}</span>
-          </div>
-        </div>
-        <div className="story-actions">
-          <Link
-            href={`/interview/${current.interviewerId}`}
-            className="start-chat-button"
-          >
-            Open the chat
-          </Link>
-        </div>
-        <p className="story-meta">
-          Round {done.length + 1} of {totalRounds()} · {campaign.playerJob}
-        </p>
-      </StoryFrame>
-    );
-  }
+    if (campaign.chapter === "briefing") {
+      updateCampaign({ chapter: "meet", panel: 0 });
+      return;
+    }
 
-  if (last?.verdict && remaining > 0) {
-    return (
-      <StoryFrame
-        kicker={`${lastPerson ? lastPerson.name : "Last round"} · ${verdictLabel(last.verdict.decision)}`}
-        title={briefing.title}
-      >
-        <p>{aftermathLine(last.verdict.decision)}</p>
-        <p>{briefing.body}</p>
-        <div className="story-actions">
-          <button
-            type="button"
-            className="start-chat-button"
-            disabled={busy}
-            onClick={() => dispatch(campaign.playerJob || last.appliedJob)}
-          >
-            Take the next interview
-          </button>
-        </div>
-        <p className="story-meta">
-          {done.length} down · {remaining} left
-        </p>
-      </StoryFrame>
-    );
-  }
+    if (campaign.chapter === "meet") {
+      if (current) router.push(`/interview/${current.interviewerId}`);
+      return;
+    }
+
+    if (campaign.chapter === "aftermath") {
+      if (remaining > 0) {
+        setBusy(true);
+        assignNextStoryContact();
+        updateCampaign({ chapter: "briefing", panel: 0 });
+        setBusy(false);
+        return;
+      }
+      updateCampaign({ chapter: "ending", panel: 0 });
+      return;
+    }
+
+    router.push("/");
+  };
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, a, input, textarea")
+      ) {
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        advance();
+      } else if (event.key === "Backspace" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        goBack();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   return (
-    <StoryFrame kicker={briefing.kicker} title={briefing.title}>
-      <p>{briefing.body}</p>
-      <div className="story-actions">
+    <main className="story-mode">
+      <header className="story-topbar">
+        <Link href="/" className="story-top-link">
+          Chats
+        </Link>
+        <div className="story-top-title">
+          <p className="app-kicker">PROBE</p>
+          <h1>Story</h1>
+        </div>
+        <p className="story-progress">{progressLabel}</p>
+      </header>
+
+      <section className="story-board">
+        <p className="story-round-hint">{roundHint}</p>
+        <p className="app-kicker">{page.kicker}</p>
+        <h2>{page.title}</h2>
+        <StoryStrip page={page} person={portraitPerson || undefined} />
+        <div className="story-dots" aria-hidden>
+          {pages.map((item, index) => (
+            <span
+              key={`${item.title}-${index}`}
+              className={index === panel ? "on" : ""}
+            />
+          ))}
+        </div>
+      </section>
+
+      <div className="story-controls">
+        <button
+          type="button"
+          className="text-button"
+          onClick={goBack}
+          disabled={panel <= 0}
+        >
+          Back
+        </button>
         <button
           type="button"
           className="start-chat-button"
+          onClick={advance}
           disabled={busy}
-          onClick={() => dispatch(campaign.playerJob || jobs[0]!)}
         >
-          Receive the contact
+          {continueLabel()}
         </button>
       </div>
-    </StoryFrame>
+
+      <MessengerNav active="story" />
+    </main>
   );
 }

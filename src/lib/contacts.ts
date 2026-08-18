@@ -75,15 +75,14 @@ export function unusedInterviewers() {
   return INTERVIEWERS.filter((person) => !used.has(person.id));
 }
 
-export function assignRandomContact(appliedJob: string): AssignedContact | null {
-  const job = appliedJob.trim();
-  if (!job || !isBrowser()) return null;
+export function assignNextStoryContact(): AssignedContact | null {
+  if (!isBrowser()) return null;
   const pool = unusedInterviewers();
   if (!pool.length) return null;
   const pick = pool[Math.floor(Math.random() * pool.length)]!;
   const contact: AssignedContact = {
     interviewerId: pick.id,
-    appliedJob: job,
+    appliedJob: pick.job,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     preview: "New interview",

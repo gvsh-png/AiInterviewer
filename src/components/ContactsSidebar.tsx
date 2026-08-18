@@ -143,7 +143,7 @@ export default function ContactsSidebar({
           <div className="empty-contacts">
             <p>No one has messaged you yet.</p>
             <Link href="/story" className="start-chat-button">
-              Open the story
+              Open story mode
             </Link>
           </div>
         ) : null}

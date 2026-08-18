@@ -9,7 +9,7 @@ export function coverRoleLine(person: Interviewer) {
 }
 
 export function coverJobLine(job: string) {
-  return `Interviewing for ${job}`;
+  return `Assigned: ${job}`;
 }
 
 export function buildCoverGuide(person: Interviewer, job: string) {

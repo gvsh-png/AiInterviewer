@@ -1,13 +1,13 @@
 # PROBE — Voice job interviews
 
-A story campaign of twelve voice interviews. You pick a cover job once. PROBE assigns random hiring contacts. They keep their real nature hidden, then send a decision letter (PDF). After the last round, the file closes.
+A story campaign of twelve voice interviews. You never pick the job. PROBE assigns a random hiring contact and their role, they keep their real nature hidden, then they send a decision letter (PDF). After the last round, the file closes.
 
 ## Features
 
-- Empty inbox on first visit — no character roster, no plus button
-- **Story** tab: intro, cover job, round briefings, aftermath, and ending
-- Each round assigns a random stored interviewer (name, photo, voice, personality)
-- Contacts only show name, title, company, and the job on your file
+- Empty inbox on first visit — no character roster, no plus button, no job picker
+- **Story mode** (`/story`) is a full comic-panel sequence: prologue, round briefings, assigned contact, aftermath, ending
+- Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
+- Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call
 - After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)
