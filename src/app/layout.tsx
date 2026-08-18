@@ -16,7 +16,7 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: "PROBE — Interviews",
-  description: "Apply for a role. A hiring contact will interview you."
+  description: "Apply for a role. A hiring contact will interview you.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} h-full`}>
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("probe:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full antialiased">{children}</body>
     </html>
   );

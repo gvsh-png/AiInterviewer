@@ -105,6 +105,12 @@ export function updateContact(
   writeContacts(next);
 }
 
+export function clearAllContacts() {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(KEY);
+  notify();
+}
+
 export function getContactsSnapshot() {
   if (!isBrowser()) return "[]";
   return window.localStorage.getItem(KEY) || "[]";

@@ -38,7 +38,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="room login-room">
+    <div className="login-room">
 
       <main className="login-panel">
         <PersonaAvatar interviewer={host} size="lg" />

@@ -13,11 +13,17 @@ import {
   subscribeToContacts,
   updateContact,
 } from "@/lib/contacts";
+import {
+  clearConversation,
+  loadConversation,
+  saveConversation,
+} from "@/lib/chatStorage";
 import { buildVerdictPdf, verdictPdfFilename } from "@/lib/offerPdf";
 import { verdictHeadline, verdictLabel, type InterviewVerdict } from "@/lib/verdict";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
+import ContactsSidebar from "@/components/ContactsSidebar";
 
 type Line = {
   id: string;
@@ -65,6 +71,7 @@ export default function InterviewRoom({
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [speechReveal, setSpeechReveal] = useState<SpeechReveal | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
@@ -118,6 +125,40 @@ export default function InterviewRoom({
   useEffect(() => {
     prefetch(openingLine, interviewer.id);
   }, [prefetch, openingLine, interviewer.id]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const stored = loadConversation(interviewer.id);
+    const timer = window.setTimeout(() => {
+      if (stored?.started) {
+        setStarted(true);
+        setLines(stored.lines);
+        setMessages(stored.messages);
+        setMeta({
+          turnCount: stored.meta.turnCount ?? 0,
+          therapyScore: stored.meta.therapyScore ?? 0,
+          phase: stored.meta.phase ?? "strict",
+          lastImageTurn: stored.meta.lastImageTurn ?? 0,
+          verdict: stored.meta.verdict,
+        });
+      }
+      setHydrated(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [mounted, interviewer.id]);
+
+  useEffect(() => {
+    if (!hydrated || !contact) return;
+    saveConversation({
+      version: 1,
+      interviewerId: interviewer.id,
+      started,
+      lines,
+      messages,
+      meta,
+      updatedAt: Date.now(),
+    });
+  }, [hydrated, contact, interviewer.id, started, lines, messages, meta]);
 
   useEffect(() => {
     if (inputLocked && listening) stopListen();
@@ -302,6 +343,7 @@ export default function InterviewRoom({
     setError(null);
     setSpeechReveal(null);
     updateContact(interviewer.id, { verdict: undefined, preview: "New interview" });
+    clearConversation(interviewer.id);
   };
 
   const logout = async () => {
@@ -342,224 +384,258 @@ export default function InterviewRoom({
 
   if (!mounted || !contact) {
     return (
-      <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
-        <header className="topbar">
-          <p className="mark">PROBE</p>
-        </header>
-      </div>
+      <main className="messenger-shell thread-shell">
+        <ContactsSidebar selectedId={interviewer.id} compact />
+        <section className="chat-thread">
+          <div className="chat-loading" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </div>
+        </section>
+      </main>
     );
   }
 
+  const status = listening
+    ? "Listening to you"
+    : themTalking
+      ? "Speaking…"
+      : showThinking
+        ? interviewer.thinkingLine
+        : coverJobLine(appliedJob);
+
   return (
-    <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
+    <main
+      className="messenger-shell thread-shell"
+      style={themeStyle(interviewer.theme) as CSSProperties}
+    >
+      <ContactsSidebar selectedId={interviewer.id} compact />
 
-      <header className="topbar">
-        <p className="mark">PROBE</p>
-        <div className="top-actions">
-          <Link href="/" className="ghost">
-            Contacts
+      <section className="chat-thread">
+        <header className="thread-header">
+          <Link href="/" className="mobile-back" aria-label="Back to chats">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="m15 5-7 7 7 7" />
+            </svg>
           </Link>
-          <button type="button" className="ghost" onClick={() => void logout()}>
-            Lock
-          </button>
-          {started && (
-            <button type="button" className="ghost danger" onClick={restart}>
-              Restart
+          <PersonaAvatar
+            interviewer={interviewer}
+            size="sm"
+            speaking={themTalking}
+            listening={listening}
+          />
+          <div className="thread-person">
+            <h1>{interviewer.name}</h1>
+            <p>{status}</p>
+          </div>
+          <div className="thread-actions">
+            {started ? (
+              <button
+                type="button"
+                className="icon-button"
+                onClick={restart}
+                aria-label="Reset conversation"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path d="M4 7h16M9 7V5h6v2M8 7l.8 12h6.4L16 7" />
+                </svg>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="icon-button desktop-lock"
+              onClick={() => void logout()}
+              aria-label="Lock"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
             </button>
-          )}
-        </div>
-      </header>
-
-      {!started ? (
-        <section className="hero">
-          <div className="hero-portrait" aria-hidden>
-            <PersonaAvatar interviewer={interviewer} size="hero" />
           </div>
-          <div className="hero-copy">
-            <p className="eyebrow">{coverJobLine(appliedJob)}</p>
-            <h1 className="brand">{firstName.toUpperCase()}</h1>
-            <p className="hero-role">{coverRoleLine(interviewer)}</p>
-            <div className="cta-row">
-              {activeVerdict ? (
-                <>
-                  <button type="button" className="primary" onClick={downloadLetter}>
-                    Download letter
-                  </button>
-                  <button type="button" className="ghost" onClick={beginInterview}>
-                    Interview again
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="primary" onClick={beginInterview}>
-                  Sit for the interview
-                </button>
-              )}
-            </div>
+        </header>
+
+        {!started ? (
+          <div className="new-chat-state">
+            <PersonaAvatar interviewer={interviewer} size="lg" />
+            <h2>{interviewer.name}</h2>
+            <p>
+              {coverRoleLine(interviewer)}
+              <br />
+              {coverJobLine(appliedJob)}
+            </p>
             {activeVerdict ? (
-              <p className="hint">
-                {verdictHeadline(activeVerdict.decision)}. The letter is on file.
-              </p>
+              <>
+                <button type="button" className="start-chat-button" onClick={downloadLetter}>
+                  Download letter
+                </button>
+                <button type="button" className="text-button" onClick={beginInterview}>
+                  Interview again
+                </button>
+              </>
             ) : (
-              <p className="hint">
-                {sttOk
-                  ? "Mic + voice reply ready in Chrome / Edge."
-                  : "Speech recognition needs Chrome or Edge — typing still works."}
-                {!ttsOk ? " Text-to-speech unavailable in this browser." : ""}
-              </p>
+              <button type="button" className="start-chat-button" onClick={beginInterview}>
+                Start conversation
+              </button>
             )}
+            <small>
+              {ttsOk
+                ? "Voice replies are on."
+                : "Voice is unavailable; text still works."}
+            </small>
           </div>
-        </section>
-      ) : (
-        <section className="stage">
-          <div className="derek-panel">
-            <PersonaAvatar
-              interviewer={interviewer}
-              size="lg"
-              speaking={themTalking}
-              listening={listening}
-            />
-            <div className="derek-meta">
-              <h2>{interviewer.name}</h2>
-              <p>{coverJobLine(appliedJob)}</p>
-              <p className="phase">{coverRoleLine(interviewer)}</p>
-            </div>
-          </div>
-
-          <div className="transcript" ref={scrollRef}>
-            {lines
-              .filter((line) => line.id !== pendingSpeechLineId)
-              .map((line) => (
-              <div key={line.id} className={`bubble ${line.role === "them" ? "derek" : "you"}`}>
-                {line.role === "them" && (
+        ) : (
+          <>
+            <div className="transcript" ref={scrollRef}>
+              <div className="conversation-date">Today</div>
+              {lines
+                .filter((line) => line.id !== pendingSpeechLineId)
+                .map((line) => (
+                  <div
+                    key={line.id}
+                    className={`message-row ${line.role === "them" ? "incoming" : "outgoing"}`}
+                  >
+                    {line.role === "them" ? (
+                      <PersonaAvatar
+                        interviewer={interviewer}
+                        size="sm"
+                        className="message-avatar"
+                      />
+                    ) : null}
+                    <div className="message-content">
+                      <div className="message-bubble">
+                        {line.role === "them" &&
+                        isLineRevealing(line.id) &&
+                        speechReveal ? (
+                          <DerekSpeechText
+                            key={speechReveal.lineId}
+                            text={speechReveal.fullText}
+                            settled={speechReveal.settled}
+                            activeChunk={speechReveal.activeChunk}
+                            durationMs={speechReveal.durationMs}
+                            chunkStartedAt={speechReveal.chunkStartedAt}
+                            complete={false}
+                          />
+                        ) : (
+                          <p className="speech-text">{line.text}</p>
+                        )}
+                        {line.imageUrl ? (
+                          <figure className="speech-photo">
+                            <img
+                              src={line.imageUrl}
+                              alt={line.imageCaption || `${firstName} shared a photo`}
+                              className="speech-photo-img"
+                            />
+                            <figcaption>
+                              {line.imageCaption || "Shared photo"}
+                            </figcaption>
+                          </figure>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              {interim ? (
+                <div className="message-row outgoing interim">
+                  <div className="message-content">
+                    <div className="message-bubble">
+                      <p>{interim}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {showThinking ? (
+                <div className="message-row incoming thinking">
                   <PersonaAvatar
                     interviewer={interviewer}
                     size="sm"
-                    speaking={false}
-                    className="bubble-avatar"
+                    className="message-avatar"
                   />
-                )}
-                <div className="bubble-body">
-                  <span className="who">
-                    {line.role === "them" ? firstName : "You"}
-                  </span>
-                  {line.role === "them" &&
-                  isLineRevealing(line.id) &&
-                  speechReveal ? (
-                    <DerekSpeechText
-                      key={speechReveal.lineId}
-                      text={speechReveal.fullText}
-                      settled={speechReveal.settled}
-                      activeChunk={speechReveal.activeChunk}
-                      durationMs={speechReveal.durationMs}
-                      chunkStartedAt={speechReveal.chunkStartedAt}
-                      complete={false}
-                    />
-                  ) : (
-                    <p className="speech-text">{line.text}</p>
-                  )}
-                  {line.imageUrl ? (
-                    <figure className="speech-photo">
-                      <img
-                        src={line.imageUrl}
-                        alt={line.imageCaption || `${firstName} shared a photo`}
-                        className="speech-photo-img"
-                      />
-                      <figcaption className="speech-photo-cap">
-                        {line.imageCaption || "Shared photo"}
-                      </figcaption>
-                    </figure>
-                  ) : null}
+                  <div className="message-content">
+                    <div className="message-bubble typing-bubble">
+                      <span />
+                      <span />
+                      <span />
+                      <em>{interviewer.thinkingLine}</em>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {interim && (
-              <div className="bubble you interim">
-                <div className="bubble-body">
-                  <span className="who">You</span>
-                  <p>{interim}</p>
+              ) : null}
+              {activeVerdict && !themTalking && !showThinking ? (
+                <div className="verdict-card">
+                  <p className="app-kicker">{verdictLabel(activeVerdict.decision)}</p>
+                  <h3>{verdictHeadline(activeVerdict.decision)}</h3>
+                  <p>{activeVerdict.letter}</p>
                 </div>
-              </div>
-            )}
-            {showThinking && (
-              <div className="bubble derek thinking">
-                <PersonaAvatar
-                  interviewer={interviewer}
-                  size="sm"
-                  className="bubble-avatar"
-                />
-                <div className="bubble-body">
-                  <span className="who">{firstName}</span>
-                  <p>{interviewer.thinkingLine}</p>
-                </div>
-              </div>
-            )}
-          </div>
+              ) : null}
+            </div>
 
-          <div className="composer">
-            {error && <p className="error">{error}</p>}
-            {activeVerdict ? (
-              <div className="verdict-card">
-                <p className="eyebrow">{verdictLabel(activeVerdict.decision)}</p>
-                <h3>{verdictHeadline(activeVerdict.decision)}</h3>
-                <p>{activeVerdict.letter}</p>
-                <div className="cta-row">
-                  <button type="button" className="primary" onClick={downloadLetter}>
+            <div className="composer">
+              {error ? <p className="composer-error">{error}</p> : null}
+              {activeVerdict ? (
+                <div className="composer-row">
+                  <button type="button" className="start-chat-button" onClick={downloadLetter}>
                     Download PDF
                   </button>
                 </div>
-              </div>
-            ) : (
-            <div className="row">
-              <button
-                type="button"
-                className={`mic ${listening ? "on" : ""}`}
-                onClick={() => (listening ? stopListen() : tryStartListen())}
-                disabled={!sttOk || inputLocked}
-                aria-label={listening ? "Stop listening" : "Speak"}
-              >
-                {listening
-                  ? "Listening"
-                  : showThinking
-                    ? "Wait…"
-                    : themTalking
-                      ? `${firstName} talking…`
-                      : "Speak"}
-              </button>
-              <form
-                className="type-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (inputLocked) return;
-                  void sendUserMessage(typed);
-                }}
-              >
-                <input
-                  value={typed}
-                  onChange={(e) => setTyped(e.target.value)}
-                  placeholder={
-                    showThinking
-                      ? interviewer.thinkingLine
-                      : themTalking
-                        ? `Wait until ${firstName} finishes…`
-                        : "Or type your answer…"
-                  }
-                  disabled={inputLocked}
-                  readOnly={inputLocked}
-                  aria-label="Type your answer"
-                />
-                <button
-                  type="submit"
-                  className="send"
-                  disabled={inputLocked || !typed.trim()}
-                >
-                  Send
-                </button>
-              </form>
+              ) : (
+                <div className="composer-row">
+                  <button
+                    type="button"
+                    className={`mic-button ${listening ? "active" : ""}`}
+                    onClick={() => (listening ? stopListen() : tryStartListen())}
+                    disabled={!sttOk || inputLocked}
+                    aria-label={listening ? "Stop listening" : "Speak"}
+                  >
+                    {listening ? (
+                      <span className="stop-icon" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden>
+                        <rect x="9" y="3" width="6" height="11" rx="3" />
+                        <path d="M6 11a6 6 0 0 0 12 0M12 17v4" />
+                      </svg>
+                    )}
+                  </button>
+                  <form
+                    className="message-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (inputLocked) return;
+                      void sendUserMessage(typed);
+                    }}
+                  >
+                    <input
+                      value={typed}
+                      onChange={(e) => setTyped(e.target.value)}
+                      placeholder={
+                        showThinking
+                          ? interviewer.thinkingLine
+                          : themTalking
+                            ? `${firstName} is talking…`
+                            : "Message"
+                      }
+                      disabled={inputLocked}
+                      readOnly={inputLocked}
+                      aria-label="Message"
+                    />
+                    <button
+                      type="submit"
+                      className="send-button"
+                      disabled={inputLocked || !typed.trim()}
+                      aria-label="Send"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden>
+                        <path d="M4 12h16M13 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
-            )}
-          </div>
-        </section>
-      )}
-    </div>
+          </>
+        )}
+      </section>
+    </main>
   );
 }

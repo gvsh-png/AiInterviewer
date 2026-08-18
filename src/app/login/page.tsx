@@ -3,7 +3,7 @@ import LoginForm from "./LoginForm";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="room" />}>
+    <Suspense fallback={<div className="chat-loading" />}>
       <LoginForm />
     </Suspense>
   );
