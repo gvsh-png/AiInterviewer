@@ -1,16 +1,17 @@
-# PROBE — Twisted AI Job Interviewers
+# PROBE — Voice job interviews
 
-Voice interview simulator with a roster of **twisted interviewers** — each with a different job, avatar, voice, color theme, and dangerous personality.
+Apply for a role. A random hiring contact is assigned. They run a voice interview, keep their real nature hidden at first, and eventually send a decision letter (PDF).
 
 ## Features
 
-- **12 interviewers** on the home roster (job + person + avatar)
-- Unique **voices** and **color themes** per interviewer
+- Empty inbox on first visit — no character roster
+- **Apply for a role** assigns a random stored interviewer (name, photo, voice, personality)
+- Contacts only show name, title, company, and the job you applied for
+- Their twist is not shown in the UI and is not announced at the start of the call
+- After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)
 - Speech-to-text + TTS via OpenRouter
-- Occasional character photo dumps (OpenRouter image gen, ~every 10 turns)
-- Typewriter transcript synced to spoken chunks
-- Restart + Lock + back to roster
+- Occasional in-character photo dumps
 
 ## Local run
 
@@ -27,19 +28,6 @@ npm run dev
 2. Set `OPENROUTER_API_KEY` and `SITE_PASSWORD`
 3. Deploy
 
-## Roster (twists)
+## Hidden interviewer pool
 
-| Person | Job | Twist |
-| --- | --- | --- |
-| Derek Holloway | Game Testing | Narcissist family-spill QA lead |
-| Marlene Crowe | Corporate HR | Stalker who already researched you |
-| Ira Voss | Corporate Security | Paranoid chief who implies disappearances |
-| Celeste Moon | People Wellness | Cultish devotion recruiter |
-| Griffin Hale | Brand & Design | Idea thief / gaslighter |
-| Dr. Helen Pike | Biotech Research | Cold clinician, “imperfect specimens” |
-| June Pell | Customer Support | Weird oversharer, basement tickets |
-| Viktor Romanov | Private Equity | Hunter metaphors, predatory PE |
-| Ashley Venn | Social Media | Parasocial stalker growth lead |
-| Hector Blaine | Facilities & Ops | Lonely night-shift address creep |
-| Vera Quill | Legal Compliance | Gaslighting sadist |
-| Knox Delgado | Esports Coaching | Rage coach, stage “accidents” |
+Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever gets assigned.

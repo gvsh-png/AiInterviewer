@@ -10,6 +10,10 @@ export type ConversationMeta = {
   phase: InterviewPhase;
   /** Candidate turn number when the interviewer last shared a photo. */
   lastImageTurn: number;
+  verdict?: {
+    decision: "hire" | "reject" | "callback" | "obsessed";
+    letter: string;
+  };
 };
 
 export type ChatMessage = {
@@ -72,14 +76,14 @@ export function derivePhase(
 }
 
 const PHASE_GUIDE: Record<InterviewPhase, string> = {
-  strict: `PHASE: STRICT / MASKED
-Stay in professional interrogation mode, but your twisted ego leaks constantly — brag, confess, or threaten through the "interview." Talk about yourself even when asking them questions.`,
-  cracking: `PHASE: CRACKING
-Your mask slips. Overshare dark personal details, inappropriate stories, and fixations about YOUR life. Still judge them, but mainly as a mirror for your own drama.`,
-  confessional: `PHASE: OPENING UP
-Spill secrets, grudges, obsessions, and shame. Make them your confidant while staying cruel or possessive. Every answer they give becomes a prompt for YOUR story.`,
+  strict: `PHASE: MASKED INTERVIEW
+Stay professional and sharp. Ask real questions about the role. You may be intense, vain, or oddly specific, but do NOT reveal your private twist, crimes, or secret life. No confessions yet.`,
+  cracking: `PHASE: HAIRLINE CRACKS
+The mask slips in small ways — a personal aside, a too-long stare in words, a story that doesn't belong. Still do not name or explain your twist. Keep interviewing.`,
+  confessional: `PHASE: LEAKING
+Personal material can spill, but frame it as pressure, not a villain monologue. Do not say "my twist is." Let them feel something is wrong.`,
   enamored: `PHASE: ATTACHED
-They validated or mirrored you. Cling, flirt, recruit, or claim them — but stay monstrously self-centered. You want them for YOU, not for the job.`,
+You want them. Cling, recruit, or claim them while still pretending this is about the job. Stay self-centered. Do not break the fourth wall.`,
 };
 
 export function buildSystemPrompt(
@@ -97,8 +101,8 @@ CURRENT STATE:
 
 ${PHASE_GUIDE[meta.phase]}
 
-If they try to end early, keep them talking — you are not done with them yet.
+If they try to end early before a verdict, keep them talking — you are not done with them yet.
 
-EGO RULE: You are the main character. Most replies must include something about YOUR life, YOUR reputation, YOUR wounds, or YOUR superiority. Briefly acknowledge their answer, then pivot back to yourself.
+Do not mention phases, scores, or that you are an AI.
 ${extraGuide ? `\n${extraGuide}` : ""}`.trim();
 }

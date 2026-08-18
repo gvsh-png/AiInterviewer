@@ -1,11 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ChatMessage, ConversationMeta } from "@/lib/personality";
 import type { Interviewer } from "@/lib/interviewers";
 import { themeStyle } from "@/lib/interviewers";
+import { coverJobLine, coverOpeningLine, coverRoleLine } from "@/lib/cover";
+import {
+  getContactsSnapshot,
+  parseContactsSnapshot,
+  subscribeToContacts,
+  updateContact,
+} from "@/lib/contacts";
+import { buildVerdictPdf, verdictPdfFilename } from "@/lib/offerPdf";
+import { verdictHeadline, verdictLabel, type InterviewVerdict } from "@/lib/verdict";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
@@ -38,6 +47,11 @@ export default function InterviewRoom({
   interviewer: Interviewer;
 }) {
   const router = useRouter();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [started, setStarted] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -58,8 +72,25 @@ export default function InterviewRoom({
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
 
+  const contactsRaw = useSyncExternalStore(
+    subscribeToContacts,
+    getContactsSnapshot,
+    () => "[]"
+  );
+  const contact = useMemo(
+    () =>
+      parseContactsSnapshot(contactsRaw).find(
+        (item) => item.interviewerId === interviewer.id
+      ) ?? null,
+    [contactsRaw, interviewer.id]
+  );
+  const appliedJob = contact?.appliedJob || interviewer.job;
+  const openingLine = coverOpeningLine(interviewer, appliedJob);
+  const storedVerdict = contact?.verdict ?? null;
+
   const themTalking = speaking && speechReveal?.complete !== true;
-  const inputLocked = busy || preparingSpeech || themTalking;
+  const decided = Boolean(meta.verdict || storedVerdict);
+  const inputLocked = busy || preparingSpeech || themTalking || decided;
   const showThinking = busy || preparingSpeech;
 
   useEffect(() => {
@@ -80,8 +111,13 @@ export default function InterviewRoom({
   } = useSpeechRecognition(onFinalSpeech);
 
   useEffect(() => {
-    prefetch(interviewer.openingLine, interviewer.id);
-  }, [prefetch, interviewer.openingLine, interviewer.id]);
+    if (!mounted) return;
+    if (!contact) router.replace("/");
+  }, [mounted, contact, router]);
+
+  useEffect(() => {
+    prefetch(openingLine, interviewer.id);
+  }, [prefetch, openingLine, interviewer.id]);
 
   useEffect(() => {
     if (inputLocked && listening) stopListen();
@@ -140,7 +176,7 @@ export default function InterviewRoom({
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy || preparingSpeech || themTalking) return;
+      if (!text || busy || preparingSpeech || themTalking || decided) return;
 
       stopListen();
       setError(null);
@@ -164,6 +200,7 @@ export default function InterviewRoom({
             messages: nextMessages,
             meta,
             interviewerId: interviewer.id,
+            appliedJob,
           }),
         });
         const data = await res.json();
@@ -178,11 +215,19 @@ export default function InterviewRoom({
           typeof data.image?.dataUrl === "string" ? data.image.dataUrl : undefined;
         const imageCaption =
           typeof data.image?.caption === "string" ? data.image.caption : undefined;
+        const verdict = (data.verdict || nextMeta.verdict) as
+          | InterviewVerdict
+          | undefined;
         setMeta({
           turnCount: nextMeta.turnCount ?? 0,
           therapyScore: nextMeta.therapyScore ?? 0,
           phase: nextMeta.phase ?? "strict",
           lastImageTurn: nextMeta.lastImageTurn ?? 0,
+          verdict,
+        });
+        updateContact(interviewer.id, {
+          preview: reply,
+          verdict,
         });
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
         setLines([
@@ -211,6 +256,8 @@ export default function InterviewRoom({
       messages,
       meta,
       interviewer.id,
+      appliedJob,
+      decided,
       startPersonaSpeech,
       stopListen,
     ]
@@ -232,14 +279,15 @@ export default function InterviewRoom({
     setStarted(true);
     const themId = uid();
     setLines([
-      { id: themId, role: "them", text: interviewer.openingLine },
+      { id: themId, role: "them", text: openingLine },
     ]);
     setMessages([
-      { role: "assistant", content: interviewer.openingLine },
+      { role: "assistant", content: openingLine },
     ]);
     setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
     setTyped("");
-    startPersonaSpeech(themId, interviewer.openingLine);
+    updateContact(interviewer.id, { preview: openingLine, verdict: undefined });
+    startPersonaSpeech(themId, openingLine);
   };
 
   const restart = () => {
@@ -253,6 +301,7 @@ export default function InterviewRoom({
     setTyped("");
     setError(null);
     setSpeechReveal(null);
+    updateContact(interviewer.id, { verdict: undefined, preview: "New interview" });
   };
 
   const logout = async () => {
@@ -263,11 +312,20 @@ export default function InterviewRoom({
     router.refresh();
   };
 
-  const phaseLabel: Record<ConversationMeta["phase"], string> = {
-    strict: "Mask on",
-    cracking: "Cracking",
-    confessional: "Spilling",
-    enamored: "Attached",
+  const activeVerdict = meta.verdict || storedVerdict;
+  const downloadLetter = () => {
+    if (!activeVerdict) return;
+    const blob = buildVerdictPdf({
+      interviewer,
+      appliedJob,
+      verdict: activeVerdict,
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = verdictPdfFilename(interviewer.company, appliedJob);
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const isLineRevealing = (lineId: string) =>
@@ -282,6 +340,16 @@ export default function InterviewRoom({
   const pendingSpeechLineId =
     preparingSpeech && speechReveal ? speechReveal.lineId : null;
 
+  if (!mounted || !contact) {
+    return (
+      <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
+        <header className="topbar">
+          <p className="mark">PROBE</p>
+        </header>
+      </div>
+    );
+  }
+
   return (
     <div className="room" style={themeStyle(interviewer.theme) as CSSProperties}>
 
@@ -289,7 +357,7 @@ export default function InterviewRoom({
         <p className="mark">PROBE</p>
         <div className="top-actions">
           <Link href="/" className="ghost">
-            Roster
+            Contacts
           </Link>
           <button type="button" className="ghost" onClick={() => void logout()}>
             Lock
@@ -308,22 +376,37 @@ export default function InterviewRoom({
             <PersonaAvatar interviewer={interviewer} size="hero" />
           </div>
           <div className="hero-copy">
-            <p className="eyebrow">{interviewer.job}</p>
+            <p className="eyebrow">{coverJobLine(appliedJob)}</p>
             <h1 className="brand">{firstName.toUpperCase()}</h1>
-            <p className="hero-role">
-              {interviewer.title} · {interviewer.company}
-            </p>
+            <p className="hero-role">{coverRoleLine(interviewer)}</p>
             <div className="cta-row">
-              <button type="button" className="primary" onClick={beginInterview}>
-                Sit for the interview
-              </button>
+              {activeVerdict ? (
+                <>
+                  <button type="button" className="primary" onClick={downloadLetter}>
+                    Download letter
+                  </button>
+                  <button type="button" className="ghost" onClick={beginInterview}>
+                    Interview again
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="primary" onClick={beginInterview}>
+                  Sit for the interview
+                </button>
+              )}
             </div>
-            <p className="hint">
-              {sttOk
-                ? "Mic + voice reply ready in Chrome / Edge."
-                : "Speech recognition needs Chrome or Edge — typing still works."}
-              {!ttsOk ? " Text-to-speech unavailable in this browser." : ""}
-            </p>
+            {activeVerdict ? (
+              <p className="hint">
+                {verdictHeadline(activeVerdict.decision)}. The letter is on file.
+              </p>
+            ) : (
+              <p className="hint">
+                {sttOk
+                  ? "Mic + voice reply ready in Chrome / Edge."
+                  : "Speech recognition needs Chrome or Edge — typing still works."}
+                {!ttsOk ? " Text-to-speech unavailable in this browser." : ""}
+              </p>
+            )}
           </div>
         </section>
       ) : (
@@ -337,10 +420,8 @@ export default function InterviewRoom({
             />
             <div className="derek-meta">
               <h2>{interviewer.name}</h2>
-              <p>
-                {interviewer.title} · {interviewer.job}
-              </p>
-              <p className="phase">{phaseLabel[meta.phase]}</p>
+              <p>{coverJobLine(appliedJob)}</p>
+              <p className="phase">{coverRoleLine(interviewer)}</p>
             </div>
           </div>
 
@@ -416,6 +497,18 @@ export default function InterviewRoom({
 
           <div className="composer">
             {error && <p className="error">{error}</p>}
+            {activeVerdict ? (
+              <div className="verdict-card">
+                <p className="eyebrow">{verdictLabel(activeVerdict.decision)}</p>
+                <h3>{verdictHeadline(activeVerdict.decision)}</h3>
+                <p>{activeVerdict.letter}</p>
+                <div className="cta-row">
+                  <button type="button" className="primary" onClick={downloadLetter}>
+                    Download PDF
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="row">
               <button
                 type="button"
@@ -463,6 +556,7 @@ export default function InterviewRoom({
                 </button>
               </form>
             </div>
+            )}
           </div>
         </section>
       )}

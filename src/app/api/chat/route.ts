@@ -13,6 +13,12 @@ import {
   extractPhotoTag,
   generateInterviewerPhoto,
 } from "@/lib/imageGen";
+import { buildCoverGuide } from "@/lib/cover";
+import {
+  buildVerdictGuide,
+  extractVerdict,
+  mustIssueVerdict,
+} from "@/lib/verdict";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,6 +27,7 @@ type RequestBody = {
   messages: ChatMessage[];
   meta?: Partial<ConversationMeta>;
   interviewerId?: string;
+  appliedJob?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -29,6 +36,9 @@ export async function POST(req: NextRequest) {
     const messages = body.messages ?? [];
     const apiKey = process.env.OPENROUTER_API_KEY;
     const interviewer = getInterviewer(body.interviewerId || "derek");
+    const appliedJob = String(
+      body.appliedJob || interviewer?.job || "this role"
+    ).trim();
 
     if (!interviewer) {
       return NextResponse.json(
@@ -65,6 +75,7 @@ export async function POST(req: NextRequest) {
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
     const photoAllowed = canSharePhoto(turnCount, lastImageTurn, 10);
+    const wantsVerdict = mustIssueVerdict(turnCount);
 
     const meta: ConversationMeta = {
       turnCount,
@@ -75,7 +86,11 @@ export async function POST(req: NextRequest) {
     const system = buildSystemPrompt(
       interviewer.systemPrompt,
       meta,
-      buildPhotoSystemGuide(interviewer, photoAllowed)
+      [
+        buildCoverGuide(interviewer, appliedJob),
+        buildPhotoSystemGuide(interviewer, photoAllowed),
+        buildVerdictGuide(turnCount, appliedJob),
+      ].join("\n\n")
     );
 
     const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
@@ -94,7 +109,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model,
           temperature: 0.9,
-          max_tokens: photoAllowed ? 260 : 180,
+          max_tokens: wantsVerdict || photoAllowed ? 520 : 180,
           messages: [
             { role: "system", content: system },
             ...messages.map((m) => ({
@@ -122,11 +137,18 @@ export async function POST(req: NextRequest) {
       data?.choices?.[0]?.message?.content?.trim() ||
       "I asked you a question. Answer it.";
 
-    const { reply, photoPrompt } = extractPhotoTag(rawReply);
+    const photoParsed = extractPhotoTag(rawReply);
+    const verdictParsed = extractVerdict(photoParsed.reply);
+    const reply =
+      verdictParsed.reply ||
+      (verdictParsed.verdict
+        ? "That's enough. We'll send you something in writing."
+        : photoParsed.reply || rawReply);
     let image: { dataUrl: string; caption: string } | null = null;
     let nextLastImageTurn = lastImageTurn;
+    const photoPrompt = photoParsed.photoPrompt;
 
-    if (photoAllowed && photoPrompt) {
+    if (photoAllowed && photoPrompt && !verdictParsed.verdict) {
       nextLastImageTurn = turnCount;
       const generated = await generateInterviewerPhoto(
         apiKey,
@@ -142,12 +164,14 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      reply: reply || rawReply,
+      reply,
       meta: {
         ...meta,
         lastImageTurn: nextLastImageTurn,
+        verdict: verdictParsed.verdict || undefined,
       },
       image,
+      verdict: verdictParsed.verdict,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

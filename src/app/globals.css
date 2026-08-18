@@ -739,6 +739,77 @@ button {
   color: color-mix(in oklab, var(--paper) 78%, transparent);
 }
 
+.job-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(8, 10, 8, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.job-modal {
+  width: min(520px, 100%);
+  max-height: min(80dvh, 720px);
+  overflow: auto;
+  background: var(--moss-deep);
+  border: 1px solid color-mix(in oklab, var(--sulfur) 35%, transparent);
+  padding: 1.35rem 1.4rem 1.2rem;
+}
+
+.job-modal h2 {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.8rem;
+}
+
+.job-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.1rem 0 1rem;
+}
+
+.job-choice {
+  width: 100%;
+  text-align: left;
+  background: var(--moss);
+  color: var(--paper);
+  border: 1px solid color-mix(in oklab, var(--paper) 16%, transparent);
+  padding: 0.85rem 1rem;
+  font: inherit;
+  letter-spacing: 0.04em;
+}
+
+.job-choice:hover {
+  border-color: var(--sulfur);
+}
+
+.verdict-card {
+  background: var(--moss);
+  border: 1px solid color-mix(in oklab, var(--sulfur) 30%, transparent);
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.verdict-card h3 {
+  margin: 0.25rem 0 0.65rem;
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.verdict-card p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: color-mix(in oklab, var(--paper) 88%, transparent);
+}
+
+.verdict-card .cta-row {
+  margin-top: 1rem;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+}
+
 @media (max-width: 640px) {
   .composer .row {
     flex-direction: column;

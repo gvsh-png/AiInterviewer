@@ -29,7 +29,7 @@ export default function PersonaAvatar({
         ) : null}
         <img
           src={src}
-          alt={`${interviewer.name}, ${interviewer.title}`}
+          alt={interviewer.name}
           className="avatar-img"
           draggable={false}
         />

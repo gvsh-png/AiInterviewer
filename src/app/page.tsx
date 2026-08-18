@@ -1,5 +1,5 @@
-import InterviewerRoster from "@/components/InterviewerRoster";
+import ContactsInbox from "@/components/ContactsInbox";
 
 export default function Home() {
-  return <InterviewerRoster />;
+  return <ContactsInbox />;
 }

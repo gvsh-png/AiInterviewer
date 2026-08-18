@@ -15,9 +15,8 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "PROBE — Twisted Job Interviewers",
-  description:
-    "Pick a twisted interviewer for a voice job interview. Different jobs, voices, and dangerous personalities.",
+  title: "PROBE — Interviews",
+  description: "Apply for a role. A hiring contact will interview you."
 };
 
 export default function RootLayout({
