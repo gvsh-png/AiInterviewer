@@ -100,7 +100,7 @@ svg {
   min-width: 0;
   height: 100dvh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   background: var(--panel);
   border-right: 1px solid var(--border);
   overflow: hidden;
@@ -315,6 +315,22 @@ svg {
   margin-top: 0;
 }
 
+.round-chip {
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  margin: 0 1rem 0.15rem;
+  padding: 0.22rem 0.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sulfur) 16%, var(--surface));
+  color: var(--sulfur);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .mobile-tabbar {
   min-height: calc(58px + env(safe-area-inset-bottom));
   padding: 0.35rem 2.25rem env(safe-area-inset-bottom);
@@ -390,13 +406,94 @@ svg {
 }
 
 .chat-thread,
-.settings-panel {
+.settings-panel,
+.story-pane {
   min-width: 0;
   height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--thread-bg);
   overflow: hidden;
+}
+
+.inbox-shell .story-pane {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.story-pane > .mobile-tabbar {
+  display: none;
+}
+
+.story-desk {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2.25rem clamp(1.1rem, 5vw, 3.5rem) 3rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+}
+
+.story-copy {
+  width: min(34rem, 100%);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.story-copy h2 {
+  margin: 0;
+  font-size: clamp(1.55rem, 4vw, 2.05rem);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.story-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.story-contact {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
+}
+
+.story-contact strong,
+.story-contact span {
+  display: block;
+}
+
+.story-contact strong {
+  font-size: 0.95rem;
+}
+
+.story-contact span {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.story-meta {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 0.72rem;
+}
+
+.story-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.story-actions .start-chat-button {
+  margin-top: 0.35rem;
 }
 
 .thread-header {
@@ -785,6 +882,12 @@ svg {
   font-weight: 750;
 }
 
+a.start-chat-button {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
 .start-chat-button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
@@ -846,6 +949,18 @@ svg {
   color: var(--text);
   text-align: left;
   font-size: 0.85rem;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.job-choice strong {
+  font-size: 0.88rem;
+}
+
+.job-choice span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
 }
 
 .job-choice:hover {
@@ -876,6 +991,15 @@ svg {
 
 .composer-row .start-chat-button {
   margin: 0 auto;
+}
+
+.composer-row.story-continue {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.composer-row.story-continue .text-button {
+  margin-top: 0;
 }
 
 .avatar {
@@ -1188,7 +1312,12 @@ svg {
   }
 
   .thread-shell > .contacts-panel,
-  .settings-shell > .contacts-panel {
+  .settings-shell > .contacts-panel,
+  .story-shell > .contacts-panel {
+    display: none;
+  }
+
+  .inbox-shell .story-pane {
     display: none;
   }
 
@@ -1197,7 +1326,8 @@ svg {
   }
 
   .chat-thread,
-  .settings-panel {
+  .settings-panel,
+  .story-pane {
     width: 100%;
     height: 100dvh;
   }
@@ -1246,7 +1376,8 @@ svg {
     grid-template-rows: auto minmax(0, 1fr) auto;
   }
 
-  .settings-panel > .mobile-tabbar {
+  .settings-panel > .mobile-tabbar,
+  .story-pane > .mobile-tabbar {
     display: flex;
   }
 

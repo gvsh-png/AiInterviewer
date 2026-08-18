@@ -467,7 +467,10 @@ export default function InterviewRoom({
             </p>
             {activeVerdict ? (
               <>
-                <button type="button" className="start-chat-button" onClick={downloadLetter}>
+                <Link href="/story" className="start-chat-button">
+                  Continue the story
+                </Link>
+                <button type="button" className="text-button" onClick={downloadLetter}>
                   Download letter
                 </button>
                 <button type="button" className="text-button" onClick={beginInterview}>
@@ -574,8 +577,11 @@ export default function InterviewRoom({
             <div className="composer">
               {error ? <p className="composer-error">{error}</p> : null}
               {activeVerdict ? (
-                <div className="composer-row">
-                  <button type="button" className="start-chat-button" onClick={downloadLetter}>
+                <div className="composer-row story-continue">
+                  <Link href="/story" className="start-chat-button">
+                    Continue the story
+                  </Link>
+                  <button type="button" className="text-button" onClick={downloadLetter}>
                     Download PDF
                   </button>
                 </div>

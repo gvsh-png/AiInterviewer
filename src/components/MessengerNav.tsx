@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 type MessengerNavProps = {
-  active: "chats" | "settings";
+  active: "chats" | "story" | "settings";
 };
 
 export default function MessengerNav({ active }: MessengerNavProps) {
@@ -17,6 +17,16 @@ export default function MessengerNav({ active }: MessengerNavProps) {
           <path d="M4 5.5h16v11H8l-4 3v-14Z" />
         </svg>
         <span>Chats</span>
+      </Link>
+      <Link
+        href="/story"
+        className={`tabbar-item ${active === "story" ? "active" : ""}`}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <path d="M5 4h11l3 3v13H5Z" />
+          <path d="M16 4v4h4M8 11h8M8 15h6" />
+        </svg>
+        <span>Story</span>
       </Link>
       <Link
         href="/settings"

@@ -1,12 +1,13 @@
 # PROBE — Voice job interviews
 
-Apply for a role. A random hiring contact is assigned. They run a voice interview, keep their real nature hidden at first, and eventually send a decision letter (PDF).
+A story campaign of twelve voice interviews. You pick a cover job once. PROBE assigns random hiring contacts. They keep their real nature hidden, then send a decision letter (PDF). After the last round, the file closes.
 
 ## Features
 
-- Empty inbox on first visit — no character roster
-- **Apply for a role** assigns a random stored interviewer (name, photo, voice, personality)
-- Contacts only show name, title, company, and the job you applied for
+- Empty inbox on first visit — no character roster, no plus button
+- **Story** tab: intro, cover job, round briefings, aftermath, and ending
+- Each round assigns a random stored interviewer (name, photo, voice, personality)
+- Contacts only show name, title, company, and the job on your file
 - Their twist is not shown in the UI and is not announced at the start of the call
 - After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)
@@ -30,4 +31,4 @@ npm run dev
 
 ## Hidden interviewer pool
 
-Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever gets assigned.
+Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever the story assigns. Reset in Settings clears chats, contacts, and campaign progress.

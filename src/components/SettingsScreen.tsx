@@ -6,6 +6,7 @@ import ContactsSidebar from "@/components/ContactsSidebar";
 import MessengerNav from "@/components/MessengerNav";
 import { clearAllConversations } from "@/lib/chatStorage";
 import { clearAllContacts } from "@/lib/contacts";
+import { clearCampaign } from "@/lib/campaign";
 import {
   getThemePreference,
   setThemePreference,
@@ -49,11 +50,12 @@ export default function SettingsScreen() {
 
   const resetProgress = () => {
     const confirmed = window.confirm(
-      "Delete every conversation and reset all interview progress?"
+      "Delete every conversation and reset the story?"
     );
     if (!confirmed) return;
     clearAllConversations();
     clearAllContacts();
+    clearCampaign();
     setResetDone(true);
   };
 
@@ -104,8 +106,8 @@ export default function SettingsScreen() {
           <section className="settings-group danger-zone">
             <h2>Conversation data</h2>
             <p className="settings-description">
-              Your chat history is stored only in this browser using local
-              storage.
+              Your chats, contacts, and story progress are stored only in this
+              browser using local storage.
             </p>
             <button
               type="button"
@@ -115,7 +117,9 @@ export default function SettingsScreen() {
               Reset all progress
             </button>
             {resetDone ? (
-              <p className="reset-confirmation">All conversations were reset.</p>
+              <p className="reset-confirmation">
+                The story and conversations were reset.
+              </p>
             ) : null}
           </section>
         </div>

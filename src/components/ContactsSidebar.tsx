@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { getInterviewer } from "@/lib/interviewers";
 import {
-  applyJobs,
-  assignRandomContact,
   getContactsSnapshot,
   parseContactsSnapshot,
   subscribeToContacts,
-  unusedInterviewers,
   relativeTime,
 } from "@/lib/contacts";
+import {
+  EMPTY_SNAPSHOT,
+  currentRoundLabel,
+  getCampaignSnapshot,
+  parseCampaignSnapshot,
+  subscribeToCampaign,
+} from "@/lib/campaign";
 import { coverJobLine } from "@/lib/cover";
 import { verdictLabel } from "@/lib/verdict";
 import PersonaAvatar from "@/components/PersonaAvatar";
@@ -27,14 +30,17 @@ export default function ContactsSidebar({
   selectedId,
   compact = false,
 }: ContactsSidebarProps) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
-  const [pickingJob, setPickingJob] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const snapshot = useSyncExternalStore(
     subscribeToContacts,
     getContactsSnapshot,
     () => "[]"
+  );
+  const campaignRaw = useSyncExternalStore(
+    subscribeToCampaign,
+    getCampaignSnapshot,
+    () => EMPTY_SNAPSHOT
   );
 
   useEffect(() => {
@@ -58,15 +64,9 @@ export default function ContactsSidebar({
     });
   }, [snapshot, query]);
 
-  const remaining = unusedInterviewers().length;
-  const jobs = applyJobs();
-
-  const apply = (job: string) => {
-    const contact = assignRandomContact(job);
-    setPickingJob(false);
-    if (!contact) return;
-    router.push(`/interview/${contact.interviewerId}`);
-  };
+  const campaign = parseCampaignSnapshot(campaignRaw);
+  const assigned = parseContactsSnapshot(snapshot);
+  const roundLabel = currentRoundLabel(campaign, assigned);
 
   return (
     <aside className={`contacts-panel ${compact ? "compact" : ""}`}>
@@ -75,26 +75,15 @@ export default function ContactsSidebar({
           <p className="app-kicker">PROBE</p>
           <h1>Chats</h1>
         </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Apply for a role"
-            onClick={() => remaining > 0 && setPickingJob(true)}
-            disabled={remaining === 0}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden>
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-          <Link href="/settings" className="icon-button" aria-label="Settings">
-            <svg viewBox="0 0 24 24" aria-hidden>
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4L10.4 6a8 8 0 0 0-1.7 1L6.5 6l-2 3.4L6.6 11a7 7 0 0 0 0 2l-2.1 1.5 2 3.4 2.3-1A8 8 0 0 0 10.4 18l.3 2.5h4L15 18a8 8 0 0 0 1.7-1l2.3 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z" />
-            </svg>
-          </Link>
-        </div>
+        <Link href="/settings" className="icon-button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4L10.4 6a8 8 0 0 0-1.7 1L6.5 6l-2 3.4L6.6 11a7 7 0 0 0 0 2l-2.1 1.5 2 3.4 2.3-1A8 8 0 0 0 10.4 18l.3 2.5h4L15 18a8 8 0 0 0 1.7-1l2.3 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z" />
+          </svg>
+        </Link>
       </header>
+
+      <p className="round-chip">{roundLabel}</p>
 
       <label className="chat-search">
         <svg viewBox="0 0 24 24" aria-hidden>
@@ -152,58 +141,15 @@ export default function ContactsSidebar({
 
         {contacts.length === 0 ? (
           <div className="empty-contacts">
-            <p>No contacts yet.</p>
-            <button
-              type="button"
-              className="start-chat-button"
-              onClick={() => setPickingJob(true)}
-              disabled={remaining === 0}
-            >
-              Apply for a role
-            </button>
+            <p>No one has messaged you yet.</p>
+            <Link href="/story" className="start-chat-button">
+              Open the story
+            </Link>
           </div>
         ) : null}
       </div>
 
       {!compact ? <MessengerNav active="chats" /> : null}
-
-      {pickingJob ? (
-        <div
-          className="job-modal-backdrop"
-          role="presentation"
-          onClick={() => setPickingJob(false)}
-        >
-          <div
-            className="job-modal"
-            role="dialog"
-            aria-labelledby="job-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <p className="app-kicker">Application</p>
-            <h2 id="job-modal-title">What role do you want?</h2>
-            <p>A hiring contact will be assigned at random.</p>
-            <div className="job-list">
-              {jobs.map((job) => (
-                <button
-                  key={job}
-                  type="button"
-                  className="job-choice"
-                  onClick={() => apply(job)}
-                >
-                  {job}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => setPickingJob(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
     </aside>
   );
 }

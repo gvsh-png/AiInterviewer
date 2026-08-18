@@ -16,7 +16,8 @@ const body = Manrope({
 
 export const metadata: Metadata = {
   title: "PROBE — Interviews",
-  description: "Apply for a role. A hiring contact will interview you.",
+  description:
+    "A story of twelve interviews. PROBE assigns the contacts. You sit through the hour.",
 };
 
 export default function RootLayout({
