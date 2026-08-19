@@ -169,6 +169,7 @@ let currentVolume = 0.1;
 let pendingPerson: InterviewerId | null = null;
 let beatTimer: number | null = null;
 let beatBpm = 72;
+let fxCtx: AudioContext | null = null;
 
 export function musicMuted() {
   return muted;
@@ -203,6 +204,13 @@ export function startPersonScore(id: InterviewerId) {
 
 export async function unlockScore() {
   if (typeof window === "undefined") return;
+  if (fxCtx?.state === "suspended") {
+    try {
+      await fxCtx.resume();
+    } catch {
+      /* hits still try later */
+    }
+  }
   if (!handle) {
     if (pendingPerson) await startPersonScore(pendingPerson);
     return;
@@ -270,6 +278,102 @@ export function playShockSting() {
     osc.start(t);
     osc.stop(t + 0.75);
   }
+}
+
+type FxKind = "work" | "probe" | "soften" | "combo" | "stamp" | "alert" | "send";
+
+function audioCtor() {
+  if (typeof window === "undefined") return null;
+  return (
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext ||
+    null
+  );
+}
+
+async function getFxCtx() {
+  const Ctor = audioCtor();
+  if (!Ctor) return null;
+  if (!fxCtx) fxCtx = new Ctor();
+  if (fxCtx.state === "suspended") {
+    try {
+      await fxCtx.resume();
+    } catch {
+      return null;
+    }
+  }
+  return fxCtx;
+}
+
+function blip(
+  ctx: AudioContext,
+  freq: number,
+  type: OscillatorType,
+  when: number,
+  dur: number,
+  vol: number
+) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  osc.type = type;
+  osc.frequency.value = freq;
+  filter.type = "lowpass";
+  filter.frequency.value = Math.max(900, freq * 6);
+  gain.gain.value = 0.0001;
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(vol, when + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  osc.start(when);
+  osc.stop(when + dur + 0.02);
+}
+
+export function playHitTone(kind: FxKind, combo = 1) {
+  void (async () => {
+    if (muted) return;
+    const ctx = await getFxCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const heat = 1 + Math.min(3, combo) * 0.12;
+    if (kind === "send") {
+      blip(ctx, 620, "square", t, 0.05, 0.05);
+      blip(ctx, 1240, "square", t + 0.04, 0.06, 0.04);
+      return;
+    }
+    if (kind === "work") {
+      blip(ctx, 196, "triangle", t, 0.09, 0.08 * heat);
+      blip(ctx, 392, "triangle", t + 0.07, 0.11, 0.07 * heat);
+      return;
+    }
+    if (kind === "probe") {
+      blip(ctx, 880, "square", t, 0.08, 0.07 * heat);
+      blip(ctx, 1320, "sine", t + 0.06, 0.16, 0.06 * heat);
+      return;
+    }
+    if (kind === "soften") {
+      blip(ctx, 220, "sine", t, 0.18, 0.07 * heat);
+      blip(ctx, 277, "sine", t + 0.04, 0.2, 0.05 * heat);
+      return;
+    }
+    if (kind === "combo") {
+      blip(ctx, 392, "square", t, 0.07, 0.07 * heat);
+      blip(ctx, 494, "square", t + 0.07, 0.07, 0.07 * heat);
+      blip(ctx, 587, "square", t + 0.14, 0.12, 0.08 * heat);
+      return;
+    }
+    if (kind === "alert") {
+      blip(ctx, 148, "sawtooth", t, 0.16, 0.09);
+      blip(ctx, 185, "sawtooth", t + 0.08, 0.2, 0.08);
+      return;
+    }
+    blip(ctx, 90, "sawtooth", t, 0.18, 0.12);
+    blip(ctx, 180, "triangle", t + 0.05, 0.22, 0.08);
+    blip(ctx, 540, "square", t + 0.12, 0.1, 0.05);
+  })();
 }
 
 async function startScore(key: string, patch: Patch) {

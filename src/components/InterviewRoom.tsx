@@ -33,6 +33,7 @@ import {
   QUESTIONS_PER_HOUR,
   STANCES,
   clockLabel,
+  detectProbeScoreDelta,
   getDirective,
   hourWindow,
   isStance,
@@ -53,6 +54,7 @@ import DerekSpeechText from "@/components/DerekSpeechText";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import NightNote from "@/components/NightNote";
 import {
+  playHitTone,
   playShockSting,
   setScoreBpm,
   startPersonScore,
@@ -61,7 +63,17 @@ import {
 } from "@/lib/nightScore";
 import { matchShockCut, type ShockCut } from "@/lib/shockCuts";
 import { interviewStress } from "@/lib/stress";
+import {
+  comboHit,
+  copySerial,
+  makeScraps,
+  stanceHit,
+  verdictHit,
+  type HitPop,
+  type PaperScrap,
+} from "@/lib/hits";
 import ShockCutscene from "@/components/ShockCutscene";
+import HitLayer from "@/components/HitLayer";
 
 type Line = {
   id: string;
@@ -118,6 +130,16 @@ export default function InterviewRoom({
   const [shockCut, setShockCut] = useState<ShockCut | null>(null);
   const [usedShockIds, setUsedShockIds] = useState<string[]>([]);
   const [heardFlash, setHeardFlash] = useState(false);
+  const [hits, setHits] = useState<HitPop[]>([]);
+  const [scraps, setScraps] = useState<PaperScrap[]>([]);
+  const [combo, setCombo] = useState(0);
+  const [copies, setCopies] = useState(0);
+  const [punch, setPunch] = useState(false);
+  const [invertFlash, setInvertFlash] = useState(false);
+  const [flicker, setFlicker] = useState(false);
+  const comboRef = useRef({ stance: "work" as Stance | null, count: 0 });
+  const stampedRef = useRef(false);
+  const alertedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const usedShockRef = useRef<string[]>([]);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -236,6 +258,46 @@ export default function InterviewRoom({
     setScoreBpm(stress.bpm);
   }, [stress.bpm]);
 
+  const pushHit = useCallback((partial: Omit<HitPop, "id">) => {
+    const hit: HitPop = { ...partial, id: uid() };
+    setHits((prev) => [...prev.slice(-2), hit]);
+    window.setTimeout(() => {
+      setHits((prev) => prev.filter((item) => item.id !== hit.id));
+    }, 1500);
+  }, []);
+
+  useEffect(() => {
+    if (!stress.alert || alertedRef.current) return;
+    alertedRef.current = true;
+    pushHit({ kind: "alert", label: "RED ALERT", sub: `${stress.bpm} BPM` });
+    playHitTone("alert");
+    setInvertFlash(true);
+    window.setTimeout(() => setInvertFlash(false), 180);
+  }, [stress.alert, stress.bpm, pushHit]);
+
+  useEffect(() => {
+    if (!stress.alert) return;
+    const tick = window.setInterval(() => {
+      setFlicker(true);
+      window.setTimeout(() => setFlicker(false), 90);
+    }, 2200);
+    return () => window.clearInterval(tick);
+  }, [stress.alert]);
+
+  useEffect(() => {
+    if (!closedVerdict || stampedRef.current) return;
+    stampedRef.current = true;
+    const hit = verdictHit(closedVerdict.decision);
+    pushHit(hit);
+    playHitTone("stamp");
+    setScraps(makeScraps(closedVerdict.decision === "obsessed" ? 28 : 18));
+    setPunch(true);
+    setInvertFlash(true);
+    window.setTimeout(() => setPunch(false), 220);
+    window.setTimeout(() => setInvertFlash(false), 200);
+    window.setTimeout(() => setScraps([]), 2200);
+  }, [closedVerdict, pushHit]);
+
   const onFinalSpeech = useCallback((text: string) => {
     if (lockedRef.current) return;
     void sendRef.current(text);
@@ -280,6 +342,7 @@ export default function InterviewRoom({
             ? stored.meta.shockIds
             : [],
         });
+        if (stored.meta.verdict) stampedRef.current = true;
         setUsedShockIds(
           Array.isArray(stored.meta.shockIds) ? stored.meta.shockIds : []
         );
@@ -389,6 +452,33 @@ export default function InterviewRoom({
         playShockSting();
         window.setTimeout(() => setHeardFlash(false), 2400);
       }
+
+      const nextCombo =
+        comboRef.current.stance === stance ? comboRef.current.count + 1 : 1;
+      comboRef.current = { stance, count: nextCombo };
+      setCombo(nextCombo);
+      setCopies((value) => value + 1);
+      playHitTone("send");
+      playHitTone(stance, nextCombo);
+      pushHit(stanceHit(stance));
+      const chain = comboHit(nextCombo);
+      if (chain) {
+        pushHit(chain);
+        playHitTone("combo", nextCombo);
+        if (nextCombo >= 3) {
+          setInvertFlash(true);
+          window.setTimeout(() => setInvertFlash(false), 160);
+        }
+      }
+      if (detectProbeScoreDelta(text) >= 1 && stance !== "probe") {
+        pushHit({ kind: "probe", label: "UNWRITTEN", sub: "THEY FLINCHED" });
+        playHitTone("probe", nextCombo);
+      }
+      if (meta.turnCount + 1 >= windowTurns.forceVerdict && !decided) {
+        pushHit({ kind: "last", label: "LAST QUESTION", sub: "THE LETTER IS TYPING" });
+      }
+      setPunch(true);
+      window.setTimeout(() => setPunch(false), 180);
 
       const nextLines: Line[] = [...lines, { id: uid(), role: "you", text }];
       setLines(nextLines);
@@ -538,6 +628,8 @@ export default function InterviewRoom({
       run,
       contact,
       shockCut,
+      pushHit,
+      windowTurns.forceVerdict,
     ]
   );
 
@@ -575,6 +667,15 @@ export default function InterviewRoom({
     setUsedShockIds([]);
     usedShockRef.current = [];
     setHeardFlash(false);
+    setHits([]);
+    setScraps([]);
+    setCombo(0);
+    setCopies(0);
+    setPunch(false);
+    setInvertFlash(false);
+    comboRef.current = { stance: null, count: 0 };
+    stampedRef.current = false;
+    alertedRef.current = false;
     void startPersonScore(interviewer.id);
     void unlockScore();
     updateContact(interviewer.id, {
@@ -628,6 +729,15 @@ export default function InterviewRoom({
     setUsedShockIds([]);
     usedShockRef.current = [];
     setHeardFlash(false);
+    setHits([]);
+    setScraps([]);
+    setCombo(0);
+    setCopies(0);
+    setPunch(false);
+    setInvertFlash(false);
+    comboRef.current = { stance: null, count: 0 };
+    stampedRef.current = false;
+    alertedRef.current = false;
     updateContact(interviewer.id, {
       verdict: undefined,
       preview: "New interview",
@@ -695,7 +805,7 @@ export default function InterviewRoom({
 
   return (
     <main
-      className={`messenger-shell thread-shell${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}`}
+      className={`messenger-shell thread-shell${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}`}
       style={themeStyle(interviewer.theme) as CSSProperties}
     >
       <ContactsSidebar selectedId={interviewer.id} compact />
@@ -718,7 +828,7 @@ export default function InterviewRoom({
             listening={listening}
           />
           <div className="thread-person">
-            <h1>{interviewer.name}</h1>
+            <h1 className={flicker ? "glitch-name" : undefined}>{interviewer.name}</h1>
             <p>{status}</p>
           </div>
           <div className="thread-actions">
@@ -778,7 +888,7 @@ export default function InterviewRoom({
             <i style={{ width: `${stress.stress}%` }} />
           </div>
           <span className="stress-hour">
-            Q{questionNow}/{windowTurns.forceVerdict || QUESTIONS_PER_HOUR}
+            {copySerial(copies)} · {combo >= 2 ? `${combo}×` : `Q${questionNow}/${windowTurns.forceVerdict || QUESTIONS_PER_HOUR}`}
           </span>
         </div>
         </div>
@@ -833,7 +943,7 @@ export default function InterviewRoom({
                 .map((line) => (
                   <div
                     key={line.id}
-                    className={`message-row ${line.role === "them" ? "incoming" : "outgoing"}`}
+                    className={`message-row ${line.role === "them" ? "incoming" : "outgoing"}${stress.alert ? " jitter" : ""}${line.role === "you" ? " slam-out" : " slam-in"}`}
                   >
                     {line.role === "them" ? (
                       <PersonaAvatar
@@ -902,7 +1012,7 @@ export default function InterviewRoom({
                 </div>
               ) : null}
               {callbackLetter && !decided ? (
-                <div className="verdict-card callback-card">
+                <div className="verdict-card callback-card slam">
                   <p className="app-kicker">{verdictLabel(callbackLetter.decision)}</p>
                   <h3>{verdictHeadline(callbackLetter.decision)}</h3>
                   <p>{callbackLetter.letter}</p>
@@ -913,7 +1023,7 @@ export default function InterviewRoom({
                 </div>
               ) : null}
               {activeVerdict && !themTalking && !showThinking ? (
-                <div className="verdict-card">
+                <div className="verdict-card slam">
                   <p className="app-kicker">{verdictLabel(activeVerdict.decision)}</p>
                   <h3>{verdictHeadline(activeVerdict.decision)}</h3>
                   <p>{activeVerdict.letter}</p>
@@ -927,7 +1037,13 @@ export default function InterviewRoom({
               ) : null}
             </div>
 
-            <div className="composer">
+            <div
+              className={`composer${
+                meta.turnCount >= windowTurns.forceVerdict - 1 && !decided
+                  ? " last-call"
+                  : ""
+              }${combo >= 3 ? " hot-combo" : ""}`}
+            >
               {notesOpen ? (
                 <div className="note-sheet">
                   <p className="app-kicker">Night note</p>
@@ -1009,7 +1125,7 @@ export default function InterviewRoom({
                       />
                       <button
                         type="submit"
-                        className="send-button"
+                        className={`send-button${typed.trim() && !inputLocked ? " armed" : ""}`}
                         disabled={inputLocked || !typed.trim()}
                         aria-label="Send"
                       >
@@ -1026,6 +1142,7 @@ export default function InterviewRoom({
         )}
       </section>
       {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
+      <HitLayer hits={hits} scraps={scraps} />
       {heardFlash ? (
         <div className="they-heard" role="status">
           THEY HEARD THAT

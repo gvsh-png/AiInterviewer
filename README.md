@@ -10,6 +10,7 @@ A story campaign of five voice interviews. You never pick the job. PROBE assigns
 - Five hours, five questions each, then a letter. The fifth hour always closes.
 - Each interviewer has their own score under the chat; a tap unlocks it so autoplay does not stay silent
 - Stress HUD with heart rate, a rising meter, red alert, room shake, and a copied-live ticker
+- Hit pops, combos, paper-stamp rain, grain, and juicy send/stamp sounds when you land a stance or a letter
 - Unskippable shock cutscenes fire from what you say (family, home, watching, staying late, softening, asking the glass). Pre-baked stills only.
 - Derek is more likely to be the assigned contact, especially on the first hour
 - Cutscene stills are baked into `public/stills/` as fallbacks (regenerate with `npm run bake:stills`)

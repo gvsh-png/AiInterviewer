@@ -57,6 +57,13 @@ import {
 } from "../src/lib/gameplay.ts";
 import { matchShockCut, SHOCK_CUTS } from "../src/lib/shockCuts.ts";
 import { interviewStress } from "../src/lib/stress.ts";
+import {
+  comboHit,
+  copySerial,
+  makeScraps,
+  stanceHit,
+  verdictHit,
+} from "../src/lib/hits.ts";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -406,5 +413,30 @@ assert.equal(hot.alert, true);
 assert.equal(hot.label, "RED ALERT");
 assert.ok(hot.bpm > calm.bpm);
 assert.ok(Object.values(PERSON_PATCHES).every((patch) => patch.volume >= 0.08));
+
+assert.equal(stanceHit("work").label, "ON THE WORK");
+assert.equal(stanceHit("probe").kind, "probe");
+assert.equal(comboHit(1), null);
+assert.match(comboHit(3)?.label || "", /3/);
+assert.equal(verdictHit("hire").kind, "stamp");
+assert.equal(copySerial(7), "COPY 0007");
+assert.ok(makeScraps(8).length === 8);
+const hitText = [
+  stanceHit("work"),
+  stanceHit("probe"),
+  stanceHit("soften"),
+  comboHit(4),
+  verdictHit("hire"),
+  verdictHit("reject"),
+  verdictHit("callback"),
+  verdictHit("obsessed"),
+]
+  .map((item) => `${item?.label || ""} ${item?.sub || ""}`)
+  .join(" ");
+assert.equal(/twist|stalker|cult/i.test(hitText), false);
+assert.equal(
+  makeScraps(18).some((scrap) => /twist|stalker|cult/i.test(scrap.label)),
+  false
+);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);
