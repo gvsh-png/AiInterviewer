@@ -124,6 +124,14 @@ export default function StoryDesk({ playHere = false }: Props) {
   const rejects = done.filter(
     (item) => item.verdict?.decision === "reject"
   ).length;
+  const mood = useMemo(
+    () => ({
+      night: run.night.title,
+      premise: run.premise.title,
+      throughline: run.throughline.echo,
+    }),
+    [run.night.title, run.premise.title, run.throughline.echo]
+  );
   const closeTitle = endingTitle(contacts);
   const personJob = current?.appliedJob || person?.job || "";
 
@@ -284,6 +292,7 @@ export default function StoryDesk({ playHere = false }: Props) {
       <CutscenePlayer
         shots={replay}
         person={person}
+        mood={mood}
         actionLabel="Back"
         onComplete={() => setReplay(null)}
       />
@@ -296,6 +305,7 @@ export default function StoryDesk({ playHere = false }: Props) {
         key={sceneKey}
         shots={filedShots}
         person={person}
+        mood={mood}
         actionLabel={actionLabel(kind, remaining, done.length)}
         onAdvance={() => {
           freezeShots.current = true;

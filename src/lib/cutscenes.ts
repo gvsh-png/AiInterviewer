@@ -266,6 +266,61 @@ export function recapTitle(kind: CutsceneKind, round: number) {
   }
 }
 
+const STILL_SCENES: Record<StillKind, string> = {
+  building:
+    "Wide night exterior of a nameless glass office tower, wet pavement, one upper floor lit sulfur-violet, no readable signage",
+  hallway:
+    "Endless corporate corridor at night, flickering fluorescents, one open door far ahead, worn beige carpet, no people",
+  door:
+    "A heavy office door ajar, warm light leaking onto a dark hallway, unreadable brass plate, empty guest chair inside",
+  file:
+    "Overhead of a manila folder on black stone, a stamped heading that cannot be read, paperclipped pages, green desk lamp",
+  letter:
+    "A folded cream letter under a banker's lamp, red stamp, no readable words, dark wood desk",
+  phone:
+    "A black office phone and a face-down smartphone glowing on a night desk, no UI text, empty chair",
+  chair:
+    "A single guest chair facing camera in a glass interview room, a second empty chair beside it, city lights behind the glass",
+  glass:
+    "From inside a dark lobby looking out through rain-streaked glass, empty street, one desk lamp reflected",
+  desk:
+    "A long intake desk in a dim lobby, a dark monitor, a badge printer, analog clock at 4:12, no clerk",
+  night:
+    "City night skyline through an upper-floor window, purple storm light, one interior lamp, empty floor",
+  portrait:
+    "Dim interview room, chair facing camera, sulfur rim light, shallow depth of field, no face in frame",
+};
+
+export function stillPrompt(input: {
+  still: StillKind;
+  line: string;
+  kicker: string;
+  night?: string;
+  premise?: string;
+  throughline?: string;
+  personName?: string;
+}): string {
+  const scene = STILL_SCENES[input.still];
+  const mood = [input.night, input.premise, input.throughline]
+    .filter(Boolean)
+    .join(". ");
+  const who =
+    input.still === "portrait" && input.personName
+      ? `This is the room where ${input.personName} will sit. Do not draw a face.`
+      : "No people, or only distant unrecognizable silhouettes.";
+  return [
+    "Photorealistic cinematic still, 16:9 widescreen, analog film grain, late-night corporate architecture.",
+    "Motivated practical lighting, slightly unsettling, no cartoon, no illustration.",
+    "No readable text, no logos, no watermarks, no captions.",
+    `Scene: ${scene}.`,
+    mood ? `Atmosphere: ${mood}` : "",
+    who,
+    `Tone of the hour: ${input.kicker}. ${input.line}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function validateShots(raw: unknown): Shot[] | null {
   if (!raw || typeof raw !== "object") return null;
   const shots = (raw as { shots?: unknown }).shots;

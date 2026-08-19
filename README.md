@@ -6,7 +6,7 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 
 - Empty inbox on first visit — no character roster, no plus button, no job picker
 - **Story** tab: full-screen cutscenes (prologue, arrival, aftermath, midpoint, ending), then a recap you can replay
-- Each run rolls a random premise, night, and through-line; OpenRouter rewrites the shots when a key is set
+- Each run rolls a random premise, night, and through-line; OpenRouter rewrites the shots and generates cinematic stills when a key is set
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call

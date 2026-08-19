@@ -62,53 +62,99 @@ export function enrichImagePrompt(
   ].join(" ");
 }
 
+export async function generateOpenRouterImage(
+  apiKey: string,
+  prompt: string,
+  aspectRatio: "1:1" | "16:9" | "9:16" | "4:3" = "1:1"
+): Promise<string | null> {
+  const model =
+    process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    "HTTP-Referer":
+      process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+    "X-Title": process.env.OPENROUTER_SITE_NAME || "Probe Interviewers",
+  };
+
+  try {
+    const upstream = await fetch("https://openrouter.ai/api/v1/images", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        prompt,
+        aspect_ratio: aspectRatio,
+        output_format: "jpeg",
+      }),
+    });
+
+    if (upstream.ok) {
+      const data = (await upstream.json()) as OpenRouterImageResponse;
+      const parsed = parseImageResponse(data);
+      if (parsed) return parsed;
+    } else {
+      const detail = await upstream.text();
+      console.error("Image generation failed", upstream.status, detail.slice(0, 400));
+    }
+  } catch (err) {
+    console.error("Image generation error", err);
+  }
+
+  try {
+    const chat = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+    if (!chat.ok) return null;
+    const data = (await chat.json()) as {
+      choices?: Array<{
+        message?: {
+          images?: Array<{ image_url?: { url?: string } }>;
+          content?: unknown;
+        };
+      }>;
+    };
+    const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (url) return url;
+  } catch (err) {
+    console.error("Image chat fallback error", err);
+  }
+
+  return null;
+}
+
+type OpenRouterImageResponse = {
+  data?: Array<{
+    b64_json?: string;
+    media_type?: string;
+    url?: string;
+    image_url?: { url?: string };
+  }>;
+};
+
+function parseImageResponse(data: OpenRouterImageResponse): string | null {
+  const image = data.data?.[0];
+  if (!image) return null;
+  if (image.b64_json) {
+    const mediaType = image.media_type || "image/jpeg";
+    return `data:${mediaType};base64,${image.b64_json}`;
+  }
+  return image.url || image.image_url?.url || null;
+}
+
 export async function generateInterviewerPhoto(
   apiKey: string,
   interviewer: Interviewer,
   photoPrompt: string
 ): Promise<GeneratedPhoto | null> {
-  const model =
-    process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
   const prompt = enrichImagePrompt(interviewer, photoPrompt);
-
-  try {
-    const upstream = await fetch("https://openrouter.ai/api/v1/images", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer":
-          process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
-        "X-Title": process.env.OPENROUTER_SITE_NAME || "Probe Interviewers",
-      },
-      body: JSON.stringify({
-        model,
-        prompt,
-        aspect_ratio: "1:1",
-        output_format: "jpeg",
-      }),
-    });
-
-    if (!upstream.ok) {
-      const detail = await upstream.text();
-      console.error("Image generation failed", upstream.status, detail.slice(0, 400));
-      return null;
-    }
-
-    const data = (await upstream.json()) as {
-      data?: Array<{ b64_json?: string; media_type?: string }>;
-    };
-    const image = data.data?.[0];
-    const b64 = image?.b64_json;
-    if (!b64) return null;
-
-    const mediaType = image.media_type || "image/jpeg";
-    return {
-      dataUrl: `data:${mediaType};base64,${b64}`,
-      prompt: photoPrompt,
-    };
-  } catch (err) {
-    console.error("Image generation error", err);
-    return null;
-  }
+  const dataUrl = await generateOpenRouterImage(apiKey, prompt, "1:1");
+  if (!dataUrl) return null;
+  return { dataUrl, prompt: photoPrompt };
 }

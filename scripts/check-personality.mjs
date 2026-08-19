@@ -27,6 +27,7 @@ import {
 import {
   STILL_KINDS,
   assembleShots,
+  stillPrompt,
   validateShots,
 } from "../src/lib/cutscenes.ts";
 
@@ -113,6 +114,21 @@ const joined = storyText.join("\n");
 assert.equal(/twist|stalker|cult/i.test(joined), false);
 assert.equal(/what role do you want|pick a cover|choose a job/i.test(joined), false);
 assert.ok(!joined.includes(first.twist));
+
+for (const still of STILL_KINDS) {
+  const prompt = stillPrompt({
+    still,
+    line: "The glass does not advertise.",
+    kicker: "PROBE",
+    night: run.night.title,
+    premise: run.premise.title,
+    throughline: run.throughline.echo,
+    personName: first.name,
+  });
+  assert.ok(prompt.length > 40);
+  assert.equal(/twist|stalker|cult/i.test(prompt), false);
+  assert.ok(!prompt.includes(first.twist));
+}
 
 const valid = validateShots({
   shots: [
