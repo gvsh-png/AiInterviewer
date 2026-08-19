@@ -28,6 +28,10 @@ export const STILL_KINDS: StillKind[] = [
   "portrait",
 ];
 
+export function stillSrc(kind: StillKind) {
+  return `/stills/${kind}.jpg`;
+}
+
 export function isStillKind(value: string): value is StillKind {
   return STILL_KINDS.includes(value as StillKind);
 }

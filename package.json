@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:personality": "npx --yes tsx scripts/check-personality.mjs"
+    "check:personality": "npx --yes tsx scripts/check-personality.mjs",
+    "bake:stills": "npx --yes tsx scripts/bake-stills.mjs --force"
   },
   "dependencies": {
     "next": "16.2.10",

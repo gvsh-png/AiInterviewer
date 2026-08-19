@@ -18,7 +18,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.endsWith(".png") ||
     pathname.endsWith(".webp") ||
-    pathname.endsWith(".svg") ||
+    pathname.endsWith(".jpg") ||
+    pathname.endsWith(".jpeg") ||
+    pathname.startsWith("/stills") ||
     pathname.endsWith(".ico") ||
     pathname.startsWith("/avatars");
 
