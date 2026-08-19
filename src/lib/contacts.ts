@@ -86,7 +86,7 @@ export function assignNextStoryContact(options?: {
   const pool = unusedInterviewers();
   if (!pool.length) return null;
   const existing = readContacts();
-  const pick = pool[Math.floor(Math.random() * pool.length)]!;
+  const pick = pool[Math.floor(randomUnit() * pool.length)]!;
   const used = existing
     .map((item) => item.directiveId)
     .filter((id): id is string => Boolean(id));
@@ -105,6 +105,15 @@ export function assignNextStoryContact(options?: {
   };
   writeContacts([contact, ...existing]);
   return contact;
+}
+
+function randomUnit() {
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = new Uint32Array(1);
+    crypto.getRandomValues(bytes);
+    return (bytes[0] || 0) / 4294967296;
+  }
+  return Math.random();
 }
 
 export function updateContact(

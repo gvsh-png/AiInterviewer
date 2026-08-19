@@ -42,6 +42,7 @@ export type CampaignState = {
   throughlineId: string;
   cutsceneDone: boolean;
   midpointSeen: boolean;
+  kindChosen: boolean;
   recap: RecapEntry[];
   shotCache: Record<string, Shot[]>;
 };
@@ -58,6 +59,7 @@ function emptyCampaign(): CampaignState {
     throughlineId: run.throughline.id,
     cutsceneDone: false,
     midpointSeen: false,
+    kindChosen: false,
     recap: [],
     shotCache: {},
   };
@@ -73,6 +75,7 @@ const EMPTY: CampaignState = {
   throughlineId: "",
   cutsceneDone: false,
   midpointSeen: false,
+  kindChosen: false,
   recap: [],
   shotCache: {},
 };
@@ -125,6 +128,10 @@ function normalize(parsed: CampaignState): CampaignState {
     throughlineId: parsed.throughlineId,
     cutsceneDone: Boolean(parsed.cutsceneDone),
     midpointSeen: Boolean(parsed.midpointSeen),
+    kindChosen:
+      parsed.kindChosen === true ||
+      parsed.chapter !== "intro" ||
+      (Array.isArray(parsed.recap) && parsed.recap.length > 0),
     recap: Array.isArray(parsed.recap) ? parsed.recap : [],
     shotCache:
       parsed.shotCache && typeof parsed.shotCache === "object"
@@ -313,7 +320,12 @@ export function currentRoundLabel(
 ) {
   if (campaignEnded(contacts) || campaign.chapter === "ending") return "Ending";
   if (!campaign.seed) return "The night has not started";
-  if (contacts.length === 0) return campaign.cutsceneDone ? "Continue" : "Prologue";
+  if (contacts.length === 0) {
+    if (!campaign.kindChosen && campaign.chapter === "intro") {
+      return "Choose the night";
+    }
+    return campaign.cutsceneDone ? "Continue" : "Prologue";
+  }
   const done = completedContacts(contacts).length;
   const current = activeContact(contacts);
   const remaining = totalRounds() - contacts.length;

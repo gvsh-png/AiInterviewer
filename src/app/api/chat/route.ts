@@ -17,6 +17,7 @@ import { buildCoverGuide } from "@/lib/cover";
 import {
   buildVerdictGuide,
   extractVerdict,
+  forceCloseInterview,
   mustIssueVerdict,
 } from "@/lib/verdict";
 import {
@@ -93,7 +94,9 @@ export async function POST(req: NextRequest) {
       body.meta?.callbackRound || body.building?.callbackRound
     );
     const round = Math.max(1, Number(body.building?.round) || 1);
-    const window = hourWindow(round, callbackRound);
+    const total = Math.max(round, Number(body.building?.total) || 12);
+    const lastHour = round >= total;
+    const window = hourWindow(round, callbackRound, total);
     const therapyDelta = lastUser
       ? detectTherapyScoreDelta(lastUser.content)
       : 0;
@@ -102,11 +105,22 @@ export async function POST(req: NextRequest) {
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
     const photoEvery = round >= 7 ? 6 : 10;
-    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, photoEvery);
-    const wantsVerdict = mustIssueVerdict(turnCount, window.forceVerdict);
+    const photoAllowed =
+      !lastHour && canSharePhoto(turnCount, lastImageTurn, photoEvery);
+    const wantsVerdict =
+      mustIssueVerdict(turnCount, window.forceVerdict) ||
+      (lastHour && turnCount >= window.minVerdict);
     const directive = getDirective(body.directiveId);
     const softenHeavy = stances.filter((item) => item === "soften").length >= 2;
     const workHeavy = stances.filter((item) => item === "work").length >= 2;
+    const verdictOptions = {
+      minTurn: window.minVerdict,
+      forceTurn: window.forceVerdict,
+      allowCallback: !callbackRound && !lastHour,
+      preferPersonal: softenHeavy || therapyScore >= 4,
+      preferClean: workHeavy && therapyScore < 3,
+      lastHour,
+    };
 
     const meta: ConversationMeta = {
       turnCount,
@@ -118,7 +132,7 @@ export async function POST(req: NextRequest) {
     };
     const sample: SampleStats = {
       round,
-      total: Math.max(round, Number(body.building?.total) || 12),
+      total,
       hires: Number(body.building?.hires) || 0,
       rejects: Number(body.building?.rejects) || 0,
       obsessed: Number(body.building?.obsessed) || 0,
@@ -140,17 +154,29 @@ export async function POST(req: NextRequest) {
         buildBuildingGuide(sample, directive, appliedJob),
         buildStanceGuide(stance, appliedJob),
         buildPhotoSystemGuide(interviewer, photoAllowed),
-        buildVerdictGuide(turnCount, appliedJob, {
-          minTurn: window.minVerdict,
-          forceTurn: window.forceVerdict,
-          allowCallback: !callbackRound && round < 12,
-          preferPersonal: softenHeavy || therapyScore >= 4,
-          preferClean: workHeavy && therapyScore < 3,
-        }),
+        buildVerdictGuide(turnCount, appliedJob, verdictOptions),
       ].join("\n\n")
     );
 
     const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+
+    const closedPayload = (forced: {
+      reply: string;
+      verdict: NonNullable<ReturnType<typeof extractVerdict>["verdict"]>;
+    }) => {
+      const closed = forced.verdict.decision !== "callback";
+      return {
+        reply: forced.reply,
+        meta: {
+          ...meta,
+          lastImageTurn,
+          callbackRound: !closed && forced.verdict.decision === "callback",
+          verdict: closed ? forced.verdict : undefined,
+        },
+        image: null,
+        verdict: forced.verdict,
+      };
+    };
 
     const upstream = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -165,8 +191,8 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           model,
-          temperature: 0.9,
-          max_tokens: wantsVerdict || photoAllowed ? 520 : 180,
+          temperature: wantsVerdict ? 0.6 : 0.9,
+          max_tokens: wantsVerdict || photoAllowed ? 900 : 180,
           messages: [
             { role: "system", content: system },
             ...messages.map((m) => ({
@@ -179,6 +205,11 @@ export async function POST(req: NextRequest) {
     );
 
     if (!upstream.ok) {
+      if (wantsVerdict) {
+        return NextResponse.json(
+          closedPayload(forceCloseInterview("", appliedJob, verdictOptions))
+        );
+      }
       const detail = await upstream.text();
       return NextResponse.json(
         {
@@ -195,17 +226,27 @@ export async function POST(req: NextRequest) {
       "I asked you a question. Answer it.";
 
     const photoParsed = extractPhotoTag(rawReply);
-    const verdictParsed = extractVerdict(photoParsed.reply);
+    const forced = wantsVerdict
+      ? forceCloseInterview(photoParsed.reply, appliedJob, verdictOptions)
+      : extractVerdict(photoParsed.reply, appliedJob);
+    const verdict = forced.verdict;
     const reply =
-      verdictParsed.reply ||
-      (verdictParsed.verdict
+      forced.reply ||
+      (verdict
         ? "That's enough. We'll send you something in writing."
         : photoParsed.reply || rawReply);
+
+    if (wantsVerdict && verdict) {
+      return NextResponse.json(
+        closedPayload({ reply, verdict })
+      );
+    }
+
     let image: { dataUrl: string; caption: string } | null = null;
     let nextLastImageTurn = lastImageTurn;
     const photoPrompt = photoParsed.photoPrompt;
 
-    if (photoAllowed && photoPrompt && !verdictParsed.verdict) {
+    if (photoAllowed && photoPrompt && !verdict) {
       nextLastImageTurn = turnCount;
       const generated = await generateInterviewerPhoto(
         apiKey,
@@ -220,9 +261,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const closed =
-      verdictParsed.verdict &&
-      verdictParsed.verdict.decision !== "callback";
+    const closed = verdict && verdict.decision !== "callback";
 
     return NextResponse.json({
       reply,
@@ -230,11 +269,11 @@ export async function POST(req: NextRequest) {
         ...meta,
         lastImageTurn: nextLastImageTurn,
         callbackRound:
-          callbackRound || verdictParsed.verdict?.decision === "callback",
-        verdict: closed ? verdictParsed.verdict : undefined,
+          callbackRound || verdict?.decision === "callback",
+        verdict: closed ? verdict : undefined,
       },
       image,
-      verdict: verdictParsed.verdict,
+      verdict,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

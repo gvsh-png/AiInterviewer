@@ -95,6 +95,7 @@ export function buildSystemPrompt(
   meta: ConversationMeta,
   extraGuide = ""
 ): string {
+  const closing = extraGuide.includes("MUST end the interview this turn");
   return `${basePrompt}
 
 CURRENT STATE:
@@ -105,7 +106,11 @@ CURRENT STATE:
 
 ${PHASE_GUIDE[meta.phase]}
 
-If they try to end early before a verdict, keep them talking — you are not done with them yet.
+${
+  closing
+    ? "CLOSE THE HOUR NOW. Do not ask another question. Issue the spoken close and the letter tags."
+    : "If they try to end early before a verdict, keep them talking — you are not done with them yet."
+}
 
 Do not mention phases, scores, or that you are an AI.
 ${extraGuide ? `\n${extraGuide}` : ""}`.trim();

@@ -1,31 +1,46 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Interviewer } from "@/lib/interviewers";
 import { stillSrc, stillVideo, type Shot } from "@/lib/cutscenes";
+import type { StoryRun } from "@/lib/storySeed";
+import {
+  musicMuted,
+  setMusicMuted,
+  startNightScore,
+  stopNightScore,
+} from "@/lib/nightScore";
 import PersonaAvatar from "@/components/PersonaAvatar";
 
 export default function CutscenePlayer({
   shots,
   person,
+  run,
   actionLabel,
   onAdvance,
   onComplete,
 }: {
   shots: Shot[];
   person?: Interviewer | null;
+  run?: StoryRun | null;
   actionLabel: string;
   onAdvance?: () => void;
   onComplete: () => void;
 }) {
   const [index, setIndex] = useState(0);
+  const [generated, setGenerated] = useState<{ key: string; src: string } | null>(
+    null
+  );
+  const [muted, setMuted] = useState(musicMuted);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const list = shots.length > 0 ? shots : FALLBACK_SHOTS;
   const safeIndex = Math.min(index, list.length - 1);
   const shot = list[safeIndex]!;
   const last = safeIndex >= list.length - 1;
-  const imageUrl = stillSrc(shot.still);
+  const shotKey = `${shot.still}:${shot.kicker}:${shot.line}`;
+  const generatedSrc = generated?.key === shotKey ? generated.src : null;
+  const imageUrl = generatedSrc || stillSrc(shot.still);
   const videoUrl = safeIndex === 0 ? stillVideo(shot.still) : null;
 
   const stopAudio = () => {
@@ -39,6 +54,46 @@ export default function CutscenePlayer({
       urlRef.current = null;
     }
   };
+
+  useEffect(() => {
+    if (!run) return;
+    void startNightScore(run.night.mood);
+    return () => stopNightScore();
+  }, [run]);
+
+  useEffect(() => {
+    let gone = false;
+    const key = `${shot.still}:${shot.kicker}:${shot.line}`;
+    const baked = stillSrc(shot.still);
+    const play = async () => {
+      try {
+        const res = await fetch("/api/story-still", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            still: shot.still,
+            nightId: run?.night.id,
+            night: run?.night.title,
+            premise: run?.premise.title,
+            throughline: run?.throughline.echo,
+            kicker: shot.kicker,
+            line: shot.line,
+            personName: person?.name,
+          }),
+        });
+        if (!res.ok || gone) return;
+        const data = (await res.json()) as { src?: string };
+        if (gone || !data.src || data.src === baked) return;
+        setGenerated({ key, src: data.src });
+      } catch {
+        /* baked still stays */
+      }
+    };
+    void play();
+    return () => {
+      gone = true;
+    };
+  }, [shot.still, shot.line, shot.kicker, run, person?.name]);
 
   useEffect(() => {
     let gone = false;
@@ -90,6 +145,13 @@ export default function CutscenePlayer({
     onComplete();
   };
 
+  const toggleMute = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const next = !muted;
+    setMuted(next);
+    setMusicMuted(next);
+  };
+
   return (
     <div
       className="cutscene"
@@ -119,8 +181,13 @@ export default function CutscenePlayer({
           />
         ) : (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element -- baked public stills */}
-            <img className="cutscene-photo" src={imageUrl} alt="" draggable={false} />
+            {/* eslint-disable-next-line @next/next/no-img-element -- generated or baked stills */}
+            <img
+              className={`cutscene-photo ${generatedSrc ? "generated" : ""}`}
+              src={imageUrl}
+              alt=""
+              draggable={false}
+            />
           </>
         )}
         {shot.still === "portrait" && person ? (
@@ -135,6 +202,9 @@ export default function CutscenePlayer({
             {safeIndex + 1} / {list.length}
           </span>
           <div className="cutscene-actions">
+            <button type="button" className="text-button" onClick={toggleMute}>
+              {muted ? "Music off" : "Music on"}
+            </button>
             <button
               type="button"
               className="text-button"

@@ -156,7 +156,12 @@ export default function InterviewRoom({
   const directive =
     getDirective(contact?.directiveId) ||
     pickDirective(round, campaign.seed || "probe");
-  const windowTurns = hourWindow(round, Boolean(meta.callbackRound));
+  const windowTurns = hourWindow(
+    round,
+    Boolean(meta.callbackRound),
+    totalRounds()
+  );
+  const lastHour = round >= totalRounds();
 
   const themTalking = speaking && speechReveal?.complete !== true;
   const closedVerdict =
@@ -669,7 +674,7 @@ export default function InterviewRoom({
             {activeVerdict ? (
               <>
                 <Link href="/story" className="start-chat-button">
-                  Continue the story
+                  {lastHour ? "See the ending" : "Continue the story"}
                 </Link>
                 <Link href="/file" className="text-button">
                   Open file
@@ -811,7 +816,7 @@ export default function InterviewRoom({
               {activeVerdict ? (
                 <div className="composer-row story-continue">
                   <Link href="/story" className="start-chat-button">
-                    Continue the story
+                    {lastHour ? "See the ending" : "Continue the story"}
                   </Link>
                   <Link href="/file" className="text-button">
                     Open file

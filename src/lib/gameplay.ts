@@ -188,11 +188,16 @@ export function hourAct(round: number): 1 | 2 | 3 | 4 {
   return 4;
 }
 
-export function hourWindow(round: number, callbackRound = false) {
+export function hourWindow(
+  round: number,
+  callbackRound = false,
+  total = 12
+) {
+  const lastHour = round >= total;
   const act = hourAct(round);
-  const minVerdict = act === 1 ? 6 : act === 2 ? 5 : 4;
-  const forceVerdict = act === 1 ? 8 : act === 2 ? 7 : act === 3 ? 6 : 5;
-  if (!callbackRound) return { minVerdict, forceVerdict };
+  const minVerdict = lastHour ? 4 : act === 1 ? 6 : act === 2 ? 5 : 4;
+  const forceVerdict = lastHour ? 4 : act === 1 ? 8 : act === 2 ? 7 : act === 3 ? 6 : 5;
+  if (!callbackRound || lastHour) return { minVerdict, forceVerdict };
   return {
     minVerdict: minVerdict + 2,
     forceVerdict: forceVerdict + 2,
@@ -340,7 +345,7 @@ export function buildBuildingGuide(
   job: string
 ) {
   const temp = sampleTemperature(stats);
-  const window = hourWindow(stats.round, false);
+  const window = hourWindow(stats.round, false, stats.total);
   const lines = [
     `TONIGHT'S BUILDING:
 Night: ${stats.nightTitle || "Late"}.

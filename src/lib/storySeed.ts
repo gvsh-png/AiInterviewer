@@ -4,10 +4,21 @@ export type StoryPremise = {
   hook: string;
 };
 
+export type NightMood =
+  | "watched"
+  | "paper"
+  | "glass"
+  | "storm"
+  | "empty"
+  | "overtime";
+
 export type StoryNight = {
   id: string;
   title: string;
   hook: string;
+  kicker: string;
+  mood: NightMood;
+  visual: string;
 };
 
 export type StoryThroughline = {
@@ -54,31 +65,55 @@ export const NIGHTS: StoryNight[] = [
     id: "board-live",
     title: "The board is in the building",
     hook: "There is an audience on a floor you will not visit. They take minutes.",
+    kicker: "Audience",
+    mood: "watched",
+    visual:
+      "An unseen upper floor behind smoked glass, a long table silhouette, one lamp, no faces",
   },
   {
     id: "printers",
     title: "The printers will not rest",
     hook: "Paper jams, then dumps a tray at once. Letters arrive faster than people.",
+    kicker: "Paper",
+    mood: "paper",
+    visual:
+      "A dark copy room vomiting stacked cream letters, sulfur lamp, no readable type",
   },
   {
     id: "cameras",
     title: "Extra cameras",
     hook: "Facilities hung glass that was not on the map. Do not look up.",
+    kicker: "Glass",
+    mood: "glass",
+    visual:
+      "A lobby ceiling of extra black-glass bubbles, rain on the curtain wall, empty street",
   },
   {
     id: "storm",
     title: "A lock-in",
     hook: "The street is closed. The lobby is not. Hours run until the weather forgets you.",
+    kicker: "Lock-in",
+    mood: "storm",
+    visual:
+      "A sealed glass lobby in a purple storm, wet revolving door, one desk lamp still on",
   },
   {
     id: "clerk-missing",
     title: "The clerk is missing",
     hook: "Intake is a light on a desk. Nobody sits there. The light is still on.",
+    kicker: "Intake",
+    mood: "empty",
+    visual:
+      "An abandoned intake desk, badge printer humming, analog clock, empty chair still warm",
   },
   {
     id: "overtime",
     title: "Past close",
     hook: "The building ended for everyone else. Your calendar did not.",
+    kicker: "Overtime",
+    mood: "overtime",
+    visual:
+      "An office floor after hours, cube lights off except one, city night through the glass",
   },
 ];
 
@@ -173,6 +208,28 @@ export function runFromIds(
     night: NIGHTS.find((item) => item.id === nightId) || NIGHTS[0]!,
     throughline:
       THROUGHLINES.find((item) => item.id === throughlineId) || THROUGHLINES[0]!,
+  };
+}
+
+export function offerStoryKinds(seed: string, count = 3): StoryNight[] {
+  const rand = mulberry32(hashSeed(`${seed}:kinds`));
+  const pool = [...NIGHTS];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    const current = pool[i]!;
+    pool[i] = pool[j]!;
+    pool[j] = current;
+  }
+  return pool.slice(0, Math.min(count, pool.length));
+}
+
+export function runFromNight(seed: string, nightId: string): StoryRun {
+  const rand = mulberry32(hashSeed(`${seed}:${nightId}`));
+  return {
+    seed,
+    night: NIGHTS.find((item) => item.id === nightId) || NIGHTS[0]!,
+    premise: pick(PREMISES, rand),
+    throughline: pick(THROUGHLINES, rand),
   };
 }
 

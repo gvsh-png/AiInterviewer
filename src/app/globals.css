@@ -441,6 +441,83 @@ svg {
   padding: 1.5rem clamp(1rem, 5vw, 4rem) 3rem;
 }
 
+.story-kinds {
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 1.25rem;
+  padding: 1.5rem clamp(1rem, 5vw, 4rem) 3rem;
+  background: #050506;
+  color: #f7f7f8;
+}
+
+.story-kinds-copy {
+  width: min(38rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.story-kinds-copy h2 {
+  margin: 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+}
+
+.story-kinds-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.story-kind-grid {
+  width: min(72rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.story-kind-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--panel);
+  color: inherit;
+  text-align: left;
+}
+
+.story-kind-card img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  animation: kenburns 22s ease-out alternate infinite;
+}
+
+.story-kind-card .app-kicker,
+.story-kind-card strong,
+.story-kind-card span {
+  padding: 0 0.85rem;
+}
+
+.story-kind-card strong {
+  font-size: 1rem;
+}
+
+.story-kind-card span:last-child {
+  padding-bottom: 0.9rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.story-kind-card:hover {
+  border-color: var(--sulfur);
+}
+
 .story-copy {
   width: min(38rem, 100%);
   margin: 0 auto;
@@ -600,6 +677,21 @@ svg {
   z-index: 0;
   pointer-events: none;
   animation: cutscene-fade 0.45s ease;
+}
+
+.cutscene-photo.generated {
+  animation:
+    cutscene-fade 0.45s ease,
+    kenburns 18s ease-out forwards;
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1.16) translate3d(-2%, 1.5%, 0);
+  }
 }
 
 @keyframes cutscene-fade {
@@ -1873,6 +1965,10 @@ a.text-button {
 }
 
 @media (max-width: 760px) {
+  .story-kind-grid {
+    grid-template-columns: 1fr;
+  }
+
   .messenger-shell {
     display: block;
     min-height: 100dvh;

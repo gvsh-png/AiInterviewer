@@ -6,7 +6,7 @@ import {
 } from "../src/lib/personality.ts";
 import { INTERVIEWERS, getInterviewer } from "../src/lib/interviewers.ts";
 import { coverOpeningLine } from "../src/lib/cover.ts";
-import { extractVerdict } from "../src/lib/verdict.ts";
+import { extractVerdict, forceCloseInterview } from "../src/lib/verdict.ts";
 import {
   BUILDING_MEMOS,
   SAMPLE_MEMOS,
@@ -23,6 +23,7 @@ import {
   NIGHTS,
   PREMISES,
   THROUGHLINES,
+  offerStoryKinds,
   rollStoryRun,
   tonightMemo,
 } from "../src/lib/storySeed.ts";
@@ -197,6 +198,7 @@ assert.equal(
       throughlineId: "four-twelve",
       cutsceneDone: false,
       midpointSeen: false,
+      kindChosen: true,
       recap: [],
       shotCache: {},
     },
@@ -237,7 +239,8 @@ assert.equal(
 assert.equal(HOUR_DIRECTIVES.length, 12);
 assert.equal(STANCES.length, 3);
 assert.equal(hourWindow(1).forceVerdict, 8);
-assert.equal(hourWindow(12).forceVerdict, 5);
+assert.equal(hourWindow(12).forceVerdict, 4);
+assert.equal(hourWindow(12, true).forceVerdict, 4);
 assert.ok(hourWindow(8, true).forceVerdict > hourWindow(8).forceVerdict);
 assert.equal(pickDirective(1, "seed-a").id, pickDirective(1, "seed-a").id);
 assert.equal(pickDirective(1, "seed-a").act, 1);
@@ -305,5 +308,19 @@ assert.equal(
   }),
   true
 );
+
+const openTags = extractVerdict("[[VERDICT: hire]]");
+assert.equal(openTags.verdict?.decision, "hire");
+assert.ok((openTags.verdict?.letter || "").length > 20);
+const forcedClose = forceCloseInterview("Keep talking about the build.", "Game Testing", {
+  lastHour: true,
+});
+assert.ok(forcedClose.verdict);
+assert.notEqual(forcedClose.verdict.decision, "callback");
+const storyKinds = offerStoryKinds("seed-kinds");
+assert.equal(storyKinds.length, 3);
+assert.equal(storyKinds[0]?.id, offerStoryKinds("seed-kinds")[0]?.id);
+const nightText = NIGHTS.map((item) => `${item.title} ${item.hook} ${item.visual}`).join(" ");
+assert.equal(/twist|stalker|cult/i.test(nightText), false);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

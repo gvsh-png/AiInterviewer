@@ -48,13 +48,14 @@ import {
   type CutsceneKind,
   type Shot,
 } from "@/lib/cutscenes";
-import { rollStoryRun } from "@/lib/storySeed";
+import { rollStoryRun, offerStoryKinds, runFromNight } from "@/lib/storySeed";
 import { coverJobLine, coverRoleLine } from "@/lib/cover";
 import {
   getDirective,
   sampleTemperature,
   temperatureLabel,
 } from "@/lib/gameplay";
+import { startNightScore } from "@/lib/nightScore";
 
 type Props = {
   /** Full-bleed player on /story. Inbox only teases the pending scene. */
@@ -115,7 +116,16 @@ export default function StoryDesk({ playHere = false }: Props) {
   const last = done[0] ?? null;
   const lastPerson = last ? getInterviewer(last.interviewerId) : null;
   const round = cutsceneRound(kind, done.length, Boolean(current), remaining);
-  const pending = (playHere || watching) && !campaign.cutsceneDone && !replay;
+  const picking =
+    Boolean(campaign.seed) &&
+    campaign.chapter === "intro" &&
+    !campaign.kindChosen;
+  const pending =
+    Boolean(campaign.seed) &&
+    !picking &&
+    (playHere || watching) &&
+    !campaign.cutsceneDone &&
+    !replay;
   const person =
     kind === "arrive"
       ? currentPerson
@@ -288,11 +298,44 @@ export default function StoryDesk({ playHere = false }: Props) {
     run.seed,
   ]);
 
+  const chooseKind = (nightId: string) => {
+    const next = runFromNight(campaign.seed || run.seed, nightId);
+    updateCampaign({
+      seed: next.seed,
+      premiseId: next.premise.id,
+      nightId: next.night.id,
+      throughlineId: next.throughline.id,
+      kindChosen: true,
+      chapter: "intro",
+      cutsceneDone: false,
+    });
+    void startNightScore(next.night.mood);
+    setWatching(true);
+  };
+
+  if (!campaign.seed) {
+    return (
+      <section className="story-desk">
+        <p className="story-beat">The night is being filed…</p>
+      </section>
+    );
+  }
+
+  if (picking) {
+    return (
+      <StoryKindPicker
+        seed={campaign.seed || run.seed}
+        onPick={chooseKind}
+      />
+    );
+  }
+
   if (replay) {
     return (
       <CutscenePlayer
         shots={replay}
         person={person}
+        run={run}
         actionLabel="Back"
         onComplete={() => setReplay(null)}
       />
@@ -305,6 +348,7 @@ export default function StoryDesk({ playHere = false }: Props) {
         key={sceneKey}
         shots={filedShots}
         person={person}
+        run={run}
         actionLabel={actionLabel(kind, remaining, done.length)}
         onAdvance={() => {
           freezeShots.current = true;
@@ -451,4 +495,91 @@ function actionLabel(
   if (kind === "ending") return "File the night";
   if (doneCount >= 6 && remaining > 0) return "Continue";
   return remaining > 0 ? "Next interview" : "See the ending";
+}
+
+function StoryKindPicker({
+  seed,
+  onPick,
+}: {
+  seed: string;
+  onPick: (nightId: string) => void;
+}) {
+  const kinds = offerStoryKinds(seed);
+  return (
+    <section className="story-kinds">
+      <div className="story-kinds-copy">
+        <p className="app-kicker">PROBE</p>
+        <h2>Which night is this?</h2>
+        <p>
+          Three files came off the printer. You pick the night. The building
+          picks who messages first.
+        </p>
+      </div>
+      <div className="story-kind-grid">
+        {kinds.map((night) => (
+          <StoryKindCard
+            key={night.id}
+            nightId={night.id}
+            title={night.title}
+            kicker={night.kicker}
+            hook={night.hook}
+            onPick={onPick}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StoryKindCard({
+  nightId,
+  title,
+  kicker,
+  hook,
+  onPick,
+}: {
+  nightId: string;
+  title: string;
+  kicker: string;
+  hook: string;
+  onPick: (nightId: string) => void;
+}) {
+  const [src, setSrc] = useState("/stills/night.jpg");
+  useEffect(() => {
+    let gone = false;
+    fetch("/api/story-still", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        still: "night",
+        nightId,
+        kicker,
+        line: hook,
+      }),
+    })
+      .then(async (res) => {
+        const data = (await res.json()) as { src?: string };
+        if (!gone && data.src) setSrc(data.src);
+      })
+      .catch(() => {
+        /* baked night still */
+      });
+    return () => {
+      gone = true;
+    };
+  }, [nightId, kicker, hook]);
+
+  return (
+    <button
+      type="button"
+      className="story-kind-card"
+      onClick={() => onPick(nightId)}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- generated story stills */}
+      <img src={src} alt="" draggable={false} />
+      <span className="app-kicker">{kicker}</span>
+      <strong>{title}</strong>
+      <span>{hook}</span>
+    </button>
+  );
 }
