@@ -55,7 +55,7 @@ type Props = {
 
 export default function StoryDesk({ playHere = false }: Props) {
   const router = useRouter();
-  const [shots, setShots] = useState<Shot[]>([]);
+  const [remoteShots, setRemoteShots] = useState<Shot[] | null>(null);
   const [replay, setReplay] = useState<Shot[] | null>(null);
   const freezeShots = useRef(false);
 
@@ -83,8 +83,10 @@ export default function StoryDesk({ playHere = false }: Props) {
     reconcileCampaign(readContacts());
   }, [contactsRaw, campaignRaw]);
 
+  // Intentionally keyed on the rolled ids so shot-cache writes do not rebuild the run.
   const run = useMemo(
     () => campaignRun(campaign),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- campaign.shotCache changes often
     [
       campaign.seed,
       campaign.premiseId,
@@ -156,14 +158,27 @@ export default function StoryDesk({ playHere = false }: Props) {
     closeTitle,
   ]);
 
+  const sceneKey = `${campaign.chapter}-${current?.interviewerId ?? "none"}-${round}`;
+  const [activeScene, setActiveScene] = useState(sceneKey);
+  if (activeScene !== sceneKey) {
+    setActiveScene(sceneKey);
+    setRemoteShots(null);
+  }
+
+  const filedShots = useMemo(() => {
+    if (remoteShots) return remoteShots;
+    if (!ctx) return [];
+    return campaign.shotCache[cacheKey(ctx)] ?? assembleShots(ctx);
+  }, [remoteShots, ctx, campaign.shotCache]);
+
+  useEffect(() => {
+    freezeShots.current = false;
+  }, [sceneKey]);
+
   useEffect(() => {
     if (!pending || !ctx || !run) return;
-    freezeShots.current = false;
     const key = cacheKey(ctx);
-    const cached = readCampaign().shotCache[key];
-    const local = assembleShots(ctx);
-    setShots(cached ?? local);
-    if (cached) return;
+    if (campaign.shotCache[key]?.length) return;
 
     const controller = new AbortController();
     fetch("/api/story", {
@@ -191,7 +206,7 @@ export default function StoryDesk({ playHere = false }: Props) {
         const data = (await res.json()) as { shots?: Shot[] };
         if (!res.ok || !data.shots?.length) return;
         if (freezeShots.current) return;
-        setShots(data.shots);
+        setRemoteShots(data.shots);
         cacheShots(key, data.shots);
       })
       .catch(() => {
@@ -199,17 +214,12 @@ export default function StoryDesk({ playHere = false }: Props) {
       });
 
     return () => controller.abort();
-  }, [pending, ctx, run]);
+  }, [pending, ctx, run, campaign.shotCache]);
 
   const finishChapter = useCallback(() => {
     freezeShots.current = true;
-    const filed = shots.length
-      ? shots
-      : ctx
-        ? assembleShots(ctx)
-        : [];
     rememberCutscene(
-      recapFromChapter(campaign.chapter, round, filed)
+      recapFromChapter(campaign.chapter, round, filedShots)
     );
 
     if (kind === "prologue") {
@@ -249,14 +259,13 @@ export default function StoryDesk({ playHere = false }: Props) {
     }
   }, [
     campaign.chapter,
-    ctx,
     current,
     done.length,
     kind,
     remaining,
     round,
     router,
-    shots,
+    filedShots,
   ]);
 
   if (replay) {
@@ -273,10 +282,10 @@ export default function StoryDesk({ playHere = false }: Props) {
   if (pending) {
     return (
       <CutscenePlayer
-        key={`${campaign.chapter}-${current?.interviewerId ?? "none"}-${round}`}
-        shots={shots.length > 0 ? shots : ctx ? assembleShots(ctx) : []}
+        key={sceneKey}
+        shots={filedShots}
         person={person}
-        loading={shots.length === 0 && !ctx}
+        loading={filedShots.length === 0}
         actionLabel={actionLabel(kind, remaining, done.length)}
         onAdvance={() => {
           freezeShots.current = true;

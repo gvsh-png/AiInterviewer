@@ -71,7 +71,7 @@ export default function CutscenePlayer({
       gone = true;
       stopAudio();
     };
-  }, [shot?.line, loading]);
+  }, [shot, loading]);
 
   const advance = () => {
     if (loading || !shot) return;
