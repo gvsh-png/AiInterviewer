@@ -949,7 +949,12 @@ export default function InterviewRoom({
             <i style={{ width: `${stress.stress}%` }} />
           </div>
           <span className="stress-hour">
-            {copySerial(copies)} · {combo >= 2 ? `${combo}×` : `Q${questionNow}/${windowTurns.forceVerdict || QUESTIONS_PER_HOUR}`}
+            <span className="stress-copy">{copySerial(copies)}</span>
+            <span>
+              {combo >= 2
+                ? `${combo}×`
+                : `Q${questionNow}/${windowTurns.forceVerdict || QUESTIONS_PER_HOUR}`}
+            </span>
           </span>
         </div>
         </div>
@@ -989,12 +994,20 @@ export default function InterviewRoom({
           </div>
         ) : (
           <>
+            <div className="transcript-stage">
             <div className="transcript" ref={scrollRef}>
               <div className="hour-brief">
-                <p className="app-kicker">
-                  Hour {round} of {totalRounds()} · Question {questionNow} of{" "}
-                  {windowTurns.forceVerdict || QUESTIONS_PER_HOUR} ·{" "}
-                  {MOOD_RECIPES[scoreMood].label}
+                <p className="app-kicker hour-brief-kicker">
+                  <span>
+                    Hour {round} of {totalRounds()}
+                  </span>
+                  <span>
+                    Question {questionNow} of{" "}
+                    {windowTurns.forceVerdict || QUESTIONS_PER_HOUR}
+                  </span>
+                  <span className="hour-mood">
+                    {MOOD_RECIPES[scoreMood].label}
+                  </span>
                 </p>
                 <strong>{directive.title}</strong>
                 <span>{directive.body}</span>
@@ -1102,6 +1115,13 @@ export default function InterviewRoom({
                 </div>
               ) : null}
             </div>
+            {talkCut &&
+            themTalking &&
+            !shockCut &&
+            talkCut.lineId === speechReveal?.lineId ? (
+              <TalkCutIn cut={talkCut.cut} direction={direction} />
+            ) : null}
+            </div>
 
             <div
               className={`composer${
@@ -1206,12 +1226,6 @@ export default function InterviewRoom({
             </div>
           </>
         )}
-        {talkCut &&
-        themTalking &&
-        !shockCut &&
-        talkCut.lineId === speechReveal?.lineId ? (
-          <TalkCutIn cut={talkCut.cut} direction={direction} />
-        ) : null}
       </section>
       {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
       <HitLayer hits={hits} scraps={scraps} />
