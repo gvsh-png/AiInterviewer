@@ -58,6 +58,17 @@ import {
 import { matchShockCut, SHOCK_CUTS } from "../src/lib/shockCuts.ts";
 import { interviewStress } from "../src/lib/stress.ts";
 import {
+  LIVE_DIRECTIONS,
+  TALK_CUTS,
+  pickLiveDirection,
+  pickTalkCut,
+} from "../src/lib/talkCuts.ts";
+import {
+  MOOD_RECIPES,
+  PERSON_MOODS,
+  interviewScoreMood,
+} from "../src/lib/scoreMood.ts";
+import {
   comboHit,
   copySerial,
   makeScraps,
@@ -272,6 +283,8 @@ assert.equal(pickDirective(5, "seed-a").act, 4);
 const playText = [
   ...HOUR_DIRECTIVES.map((item) => `${item.title} ${item.body}`),
   ...STANCES.map((item) => `${item.label} ${item.hint}`),
+  ...LIVE_DIRECTIONS.map((item) => `${item.title} ${item.body}`),
+  ...TALK_CUTS.map((item) => `${item.kicker} ${item.line}`),
 ].join(" ");
 assert.equal(/twist|stalker|cult/i.test(playText), false);
 assert.equal(/what role do you want|pick a cover|choose a job/i.test(playText), false);
@@ -436,6 +449,43 @@ const hitText = [
 assert.equal(/twist|stalker|cult/i.test(hitText), false);
 assert.equal(
   makeScraps(18).some((scrap) => /twist|stalker|cult/i.test(scrap.label)),
+  false
+);
+
+assert.equal(Object.keys(PERSON_MOODS).length, INTERVIEWERS.length);
+assert.ok(Object.values(PERSON_MOODS).includes("upbeat"));
+assert.ok(Object.values(PERSON_MOODS).includes("horror"));
+assert.equal(
+  interviewScoreMood({
+    home: "upbeat",
+    phase: "strict",
+    stance: "work",
+    stress: 20,
+    alert: false,
+    lastQuestion: false,
+  }),
+  "upbeat"
+);
+assert.equal(
+  interviewScoreMood({
+    home: "upbeat",
+    phase: "strict",
+    stance: "work",
+    stress: 90,
+    alert: true,
+    lastQuestion: false,
+  }),
+  "horror"
+);
+assert.ok(MOOD_RECIPES.horror.steps.includes(6));
+assert.ok(TALK_CUTS.length >= 8);
+assert.ok(LIVE_DIRECTIONS.length >= 8);
+assert.equal(pickTalkCut("seed", 1, TALK_CUTS.map((cut) => cut.id)), null);
+assert.equal(pickLiveDirection("seed", 1, 0).id, pickLiveDirection("seed", 1, 0).id);
+assert.equal(
+  Object.values(MOOD_RECIPES).some((mood) =>
+    /twist|stalker|cult/i.test(mood.label)
+  ),
   false
 );
 
