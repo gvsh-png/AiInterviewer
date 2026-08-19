@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -57,6 +58,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   const router = useRouter();
   const [remoteShots, setRemoteShots] = useState<Shot[] | null>(null);
   const [replay, setReplay] = useState<Shot[] | null>(null);
+  const [watching, setWatching] = useState(playHere);
   const freezeShots = useRef(false);
 
   const campaignRaw = useSyncExternalStore(
@@ -78,7 +80,7 @@ export default function StoryDesk({ playHere = false }: Props) {
     [contactsRaw]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     readCampaign();
     reconcileCampaign(readContacts());
   }, [contactsRaw, campaignRaw]);
@@ -104,7 +106,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   const last = done[0] ?? null;
   const lastPerson = last ? getInterviewer(last.interviewerId) : null;
   const round = cutsceneRound(kind, done.length, Boolean(current), remaining);
-  const pending = playHere && !campaign.cutsceneDone && !replay;
+  const pending = (playHere || watching) && !campaign.cutsceneDone && !replay;
   const person =
     kind === "arrive"
       ? currentPerson
@@ -216,6 +218,12 @@ export default function StoryDesk({ playHere = false }: Props) {
     return () => controller.abort();
   }, [pending, ctx, run, campaign.shotCache]);
 
+  const startScene = () => {
+    readCampaign();
+    reconcileCampaign(readContacts());
+    setWatching(true);
+  };
+
   const finishChapter = useCallback(() => {
     freezeShots.current = true;
     rememberCutscene(
@@ -312,7 +320,8 @@ export default function StoryDesk({ playHere = false }: Props) {
           <button
             type="button"
             className="start-chat-button"
-            onClick={() => router.push("/story")}
+            onPointerDown={startScene}
+            onClick={startScene}
           >
             Play the next scene
           </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import MessengerNav from "@/components/MessengerNav";
 import StoryDesk from "@/components/StoryDesk";
@@ -41,9 +41,9 @@ export default function StoryScreen() {
     [contactsRaw]
   );
   const subtitle = currentRoundLabel(campaign, contacts);
-  const playing = Boolean(campaign.seed) && !campaign.cutsceneDone;
+  const playing = !campaign.cutsceneDone;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     readCampaign();
     reconcileCampaign(readContacts());
   }, []);
