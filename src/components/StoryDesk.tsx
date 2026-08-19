@@ -47,6 +47,7 @@ import {
   type CutsceneKind,
   type Shot,
 } from "@/lib/cutscenes";
+import { rollStoryRun } from "@/lib/storySeed";
 import { coverJobLine, coverRoleLine } from "@/lib/cover";
 
 type Props = {
@@ -59,6 +60,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   const [remoteShots, setRemoteShots] = useState<Shot[] | null>(null);
   const [replay, setReplay] = useState<Shot[] | null>(null);
   const [watching, setWatching] = useState(playHere);
+  const [fallbackRun] = useState(() => rollStoryRun());
   const freezeShots = useRef(false);
 
   const campaignRaw = useSyncExternalStore(
@@ -87,13 +89,14 @@ export default function StoryDesk({ playHere = false }: Props) {
 
   // Intentionally keyed on the rolled ids so shot-cache writes do not rebuild the run.
   const run = useMemo(
-    () => campaignRun(campaign),
+    () => campaignRun(campaign) ?? fallbackRun,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- campaign.shotCache changes often
     [
       campaign.seed,
       campaign.premiseId,
       campaign.nightId,
       campaign.throughlineId,
+      fallbackRun,
     ]
   );
   const kind = chapterToKind(campaign.chapter);
@@ -124,8 +127,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   const closeTitle = endingTitle(contacts);
   const personJob = current?.appliedJob || person?.job || "";
 
-  const ctx = useMemo((): CutsceneContext | null => {
-    if (!run) return null;
+  const ctx = useMemo((): CutsceneContext => {
     return {
       run,
       kind,
@@ -168,8 +170,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   }
 
   const filedShots = useMemo(() => {
-    if (remoteShots) return remoteShots;
-    if (!ctx) return [];
+    if (remoteShots?.length) return remoteShots;
     return campaign.shotCache[cacheKey(ctx)] ?? assembleShots(ctx);
   }, [remoteShots, ctx, campaign.shotCache]);
 
@@ -178,7 +179,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   }, [sceneKey]);
 
   useEffect(() => {
-    if (!pending || !ctx || !run) return;
+    if (!pending) return;
     const key = cacheKey(ctx);
     if (campaign.shotCache[key]?.length) return;
 
@@ -216,7 +217,9 @@ export default function StoryDesk({ playHere = false }: Props) {
       });
 
     return () => controller.abort();
-  }, [pending, ctx, run, campaign.shotCache]);
+    // shotCache is read once; caching the result would retrigger and abort the request
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, sceneKey, ctx, run]);
 
   const startScene = () => {
     readCampaign();
@@ -293,7 +296,6 @@ export default function StoryDesk({ playHere = false }: Props) {
         key={sceneKey}
         shots={filedShots}
         person={person}
-        loading={filedShots.length === 0}
         actionLabel={actionLabel(kind, remaining, done.length)}
         onAdvance={() => {
           freezeShots.current = true;

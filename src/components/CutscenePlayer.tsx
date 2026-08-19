@@ -8,14 +8,12 @@ import PersonaAvatar from "@/components/PersonaAvatar";
 export default function CutscenePlayer({
   shots,
   person,
-  loading = false,
   actionLabel,
   onAdvance,
   onComplete,
 }: {
   shots: Shot[];
   person?: Interviewer | null;
-  loading?: boolean;
   actionLabel: string;
   onAdvance?: () => void;
   onComplete: () => void;
@@ -23,8 +21,10 @@ export default function CutscenePlayer({
   const [index, setIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
-  const shot = shots[Math.min(index, Math.max(0, shots.length - 1))];
-  const last = shots.length > 0 && index >= shots.length - 1;
+  const list = shots.length > 0 ? shots : FALLBACK_SHOTS;
+  const safeIndex = Math.min(index, list.length - 1);
+  const shot = list[safeIndex]!;
+  const last = safeIndex >= list.length - 1;
 
   const stopAudio = () => {
     const audio = audioRef.current;
@@ -39,7 +39,6 @@ export default function CutscenePlayer({
   };
 
   useEffect(() => {
-    if (!shot || loading) return;
     let gone = false;
     stopAudio();
     const play = async () => {
@@ -71,10 +70,9 @@ export default function CutscenePlayer({
       gone = true;
       stopAudio();
     };
-  }, [shot, loading]);
+  }, [shot.line, shot.still]);
 
   const advance = () => {
-    if (loading || !shot) return;
     stopAudio();
     onAdvance?.();
     if (!last) {
@@ -85,34 +83,36 @@ export default function CutscenePlayer({
   };
 
   const skip = () => {
-    if (loading) return;
     stopAudio();
     onAdvance?.();
     onComplete();
   };
 
   return (
-    <div className="cutscene" onClick={advance} onKeyDown={(event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        advance();
-      }
-    }} role="presentation">
-      <div className={`cutscene-still still-${shot?.still || "night"}`}>
-        {shot?.still === "portrait" && person ? (
+    <div
+      className="cutscene"
+      onClick={advance}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          advance();
+        }
+      }}
+      role="presentation"
+    >
+      <div className={`cutscene-still still-${shot.still}`}>
+        {shot.still === "portrait" && person ? (
           <PersonaAvatar interviewer={person} size="lg" />
         ) : (
           <span className="cutscene-mark" aria-hidden />
         )}
       </div>
       <div className="cutscene-caption">
-        <p className="app-kicker">{loading ? "PROBE" : shot?.kicker}</p>
-        <p>{loading ? "The file is printing…" : shot?.line}</p>
+        <p className="app-kicker">{shot.kicker}</p>
+        <p>{shot.line}</p>
         <div className="cutscene-bar">
           <span>
-            {loading
-              ? "…"
-              : `${Math.min(index + 1, shots.length)} / ${shots.length || 1}`}
+            {safeIndex + 1} / {list.length}
           </span>
           <div className="cutscene-actions">
             <button
@@ -122,7 +122,6 @@ export default function CutscenePlayer({
                 event.stopPropagation();
                 skip();
               }}
-              disabled={loading}
             >
               Skip
             </button>
@@ -133,7 +132,6 @@ export default function CutscenePlayer({
                 event.stopPropagation();
                 advance();
               }}
-              disabled={loading}
             >
               {last ? actionLabel : "Continue"}
             </button>
@@ -143,3 +141,11 @@ export default function CutscenePlayer({
     </div>
   );
 }
+
+const FALLBACK_SHOTS: Shot[] = [
+  {
+    still: "night",
+    kicker: "PROBE",
+    line: "The glass does not advertise. You sit down anyway.",
+  },
+];

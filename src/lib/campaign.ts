@@ -87,6 +87,20 @@ function notify() {
   window.dispatchEvent(new Event(CAMPAIGN_EVENT));
 }
 
+let memoryRaw = EMPTY_SNAPSHOT;
+let memoryState: CampaignState = EMPTY;
+
+function persist(state: CampaignState) {
+  memoryState = state;
+  memoryRaw = JSON.stringify(state);
+  try {
+    window.localStorage.setItem(KEY, memoryRaw);
+  } catch {
+    /* Safari private mode still keeps the in-memory run */
+  }
+  return memoryRaw;
+}
+
 function isChapter(value: unknown): value is CampaignChapter {
   return (
     value === "intro" ||
@@ -124,22 +138,27 @@ export function readCampaign(): CampaignState {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) {
+      if (memoryState.seed) return memoryState;
       const rolled = emptyCampaign();
-      window.localStorage.setItem(KEY, JSON.stringify(rolled));
+      persist(rolled);
       notify();
       return rolled;
     }
     const parsed = JSON.parse(raw) as CampaignState;
     if (!parsed || parsed.version !== STORAGE_VERSION) {
       const rolled = emptyCampaign();
-      window.localStorage.setItem(KEY, JSON.stringify(rolled));
+      persist(rolled);
       notify();
       return rolled;
     }
-    return normalize(parsed);
+    const next = normalize(parsed);
+    memoryState = next;
+    memoryRaw = raw;
+    return next;
   } catch {
+    if (memoryState.seed) return memoryState;
     const rolled = emptyCampaign();
-    window.localStorage.setItem(KEY, JSON.stringify(rolled));
+    persist(rolled);
     notify();
     return rolled;
   }
@@ -147,7 +166,7 @@ export function readCampaign(): CampaignState {
 
 export function writeCampaign(next: CampaignState) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(KEY, JSON.stringify(next));
+  persist(next);
   notify();
 }
 
@@ -157,13 +176,25 @@ export function updateCampaign(patch: Partial<CampaignState>) {
 
 export function clearCampaign() {
   if (!isBrowser()) return;
-  window.localStorage.removeItem(KEY);
+  memoryState = EMPTY;
+  memoryRaw = EMPTY_SNAPSHOT;
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
   notify();
 }
 
 export function getCampaignSnapshot() {
   if (!isBrowser()) return EMPTY_SNAPSHOT;
-  return window.localStorage.getItem(KEY) || EMPTY_SNAPSHOT;
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (raw) return raw;
+  } catch {
+    /* private mode */
+  }
+  return memoryRaw;
 }
 
 export function subscribeToCampaign(onChange: () => void) {
