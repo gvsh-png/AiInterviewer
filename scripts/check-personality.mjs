@@ -12,17 +12,23 @@ import {
   unlockedMemos,
 } from "../src/lib/fileCabinet.ts";
 import {
-  AFTERMATH_PAGES,
-  ENDING_PAGES,
-  INTRO_PAGES,
-  ROUND_PAGES,
   aftermathLine,
-  briefingForRound,
   currentRoundLabel,
   epilogue,
-  meetPage,
   totalRounds,
 } from "../src/lib/campaign.ts";
+import {
+  NIGHTS,
+  PREMISES,
+  THROUGHLINES,
+  rollStoryRun,
+  tonightMemo,
+} from "../src/lib/storySeed.ts";
+import {
+  STILL_KINDS,
+  assembleShots,
+  validateShots,
+} from "../src/lib/cutscenes.ts";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -59,51 +65,121 @@ assert.equal(parsed.verdict?.decision, "hire");
 assert.match(parsed.reply, /paperwork/i);
 assert.equal(parsed.reply.includes("VERDICT"), false);
 
-assert.ok(INTRO_PAGES.length >= 2);
-assert.equal(ROUND_PAGES.length, 12);
+assert.equal(PREMISES.length, 6);
+assert.equal(NIGHTS.length, 6);
+assert.equal(THROUGHLINES.length, 6);
 assert.equal(totalRounds(), INTERVIEWERS.length);
-assert.ok(INTRO_PAGES.every((page) => page.beats.length >= 2));
-assert.ok(ROUND_PAGES.every((page) => page.beats.length >= 2));
+
+const run = rollStoryRun("test");
+const person = {
+  name: first.name,
+  title: first.title,
+  company: first.company,
+  job: first.job,
+};
+const kinds = ["prologue", "arrive", "aftermath", "midpoint", "ending"];
+const storyText = [];
+
+for (const kind of kinds) {
+  const shots = assembleShots({
+    run,
+    kind,
+    round: kind === "aftermath" ? 6 : 1,
+    total: 12,
+    person,
+    lastVerdict: "hire",
+    lastName: first.name,
+    hires: 3,
+    obsessed: 0,
+    rejects: 1,
+    endingTitle: "Mixed file",
+  });
+  assert.ok(shots.length >= 2, `${kind} should have shots`);
+  assert.ok(shots.every((shot) => STILL_KINDS.includes(shot.still)));
+  if (kind === "arrive") {
+    assert.equal(shots[shots.length - 1]?.still, "portrait");
+  }
+  storyText.push(shots.map((shot) => `${shot.kicker} ${shot.line}`).join(" "));
+}
+
+storyText.push(
+  ...PREMISES.map((item) => `${item.title} ${item.hook}`),
+  ...NIGHTS.map((item) => `${item.title} ${item.hook}`),
+  ...THROUGHLINES.map((item) => `${item.title} ${item.echo}`),
+  tonightMemo(run).body
+);
+
+const joined = storyText.join("\n");
+assert.equal(/twist|stalker|cult/i.test(joined), false);
+assert.equal(/what role do you want|pick a cover|choose a job/i.test(joined), false);
+assert.ok(!joined.includes(first.twist));
+
+const valid = validateShots({
+  shots: [
+    { still: "night", kicker: "PROBE", line: "The glass does not advertise." },
+    { still: "desk", kicker: "Intake", line: "You sit down." },
+  ],
+});
+assert.equal(valid?.length, 2);
+assert.equal(validateShots({ shots: [{ still: "nope", line: "x" }] }), null);
+
 assert.match(aftermathLine("hire"), /hired/i);
 assert.match(aftermathLine("obsessed"), /letter/i);
-assert.equal(briefingForRound(1).kicker, "Round 1");
-assert.equal(briefingForRound(12).kicker, "Round 12");
-assert.equal(briefingForRound(99).kicker, "Round 12");
 assert.equal(
-  currentRoundLabel({ version: 3, chapter: "intro", panel: 0 }, []),
-  "Continue the story"
+  currentRoundLabel(
+    {
+      version: 4,
+      chapter: "intro",
+      panel: 0,
+      seed: "",
+      premiseId: "",
+      nightId: "",
+      throughlineId: "",
+      cutsceneDone: false,
+      midpointSeen: false,
+      recap: [],
+      shotCache: {},
+    },
+    []
+  ),
+  "The night has not started"
 );
-assert.match(meetPage("Derek Holloway", "Game Testing", 1).beats.join(" "), /Derek Holloway/);
-assert.ok(AFTERMATH_PAGES.hire.length >= 1);
-assert.ok(ENDING_PAGES.sample.length >= 1);
+assert.equal(
+  currentRoundLabel(
+    {
+      version: 4,
+      chapter: "intro",
+      panel: 0,
+      seed: "test",
+      premiseId: "list-error",
+      nightId: "board-live",
+      throughlineId: "four-twelve",
+      cutsceneDone: false,
+      midpointSeen: false,
+      recap: [],
+      shotCache: {},
+    },
+    []
+  ),
+  "Prologue"
+);
 
-const hiredFile = INTERVIEWERS.slice(0, 6).map((person, index) => ({
-  interviewerId: person.id,
-  appliedJob: person.job,
+const hiredFile = INTERVIEWERS.slice(0, 6).map((npc, index) => ({
+  interviewerId: npc.id,
+  appliedJob: npc.job,
   createdAt: index,
   updatedAt: index,
   verdict: { decision: "hire", letter: "Yes." },
 }));
 assert.match(epilogue(hiredFile).title, /Staff adjacent/);
-const coldFile = INTERVIEWERS.map((person, index) => ({
-  interviewerId: person.id,
-  appliedJob: person.job,
+const coldFile = INTERVIEWERS.map((npc, index) => ({
+  interviewerId: npc.id,
+  appliedJob: npc.job,
   createdAt: index,
   updatedAt: index,
   verdict: { decision: "reject", letter: "No." },
 }));
 assert.match(epilogue(coldFile).title, /Sample closed/);
-
-const storyText = [
-  ...INTRO_PAGES,
-  ...ROUND_PAGES,
-  ...Object.values(AFTERMATH_PAGES).flat(),
-  ...Object.values(ENDING_PAGES).flat(),
-]
-  .map((page) => `${page.title} ${page.beats.join(" ")}`)
-  .join("\n");
-assert.equal(/twist|stalker|cult/i.test(storyText), false);
-assert.equal(/what role do you want|pick a cover|choose a job/i.test(storyText), false);
 
 assert.ok(BUILDING_MEMOS.length >= 6);
 assert.equal(unlockedMemos(0).length, 1);

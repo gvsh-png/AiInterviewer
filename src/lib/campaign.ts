@@ -1,156 +1,83 @@
 import { INTERVIEWERS } from "@/lib/interviewers";
 import type { AssignedContact } from "@/lib/contacts";
 import type { VerdictDecision } from "@/lib/verdict";
+import {
+  recapTitle,
+  type CutsceneKind,
+  type Shot,
+} from "@/lib/cutscenes";
+import {
+  createSeed,
+  rollStoryRun,
+  runFromIds,
+  type StoryRun,
+} from "@/lib/storySeed";
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const KEY = `probe:campaign:v${STORAGE_VERSION}`;
 export const CAMPAIGN_EVENT = "probe:campaign-changed";
 
-export type CampaignChapter = "intro" | "meet" | "aftermath" | "ending";
+export type CampaignChapter =
+  | "intro"
+  | "arrive"
+  | "aftermath"
+  | "midpoint"
+  | "ending";
+
+export type RecapEntry = {
+  id: string;
+  kind: CutsceneKind;
+  title: string;
+  round: number;
+  shots: Shot[];
+};
 
 export type CampaignState = {
   version: typeof STORAGE_VERSION;
   chapter: CampaignChapter;
   panel: number;
+  seed: string;
+  premiseId: string;
+  nightId: string;
+  throughlineId: string;
+  cutsceneDone: boolean;
+  midpointSeen: boolean;
+  recap: RecapEntry[];
+  shotCache: Record<string, Shot[]>;
 };
 
-export type StoryPage = {
-  kicker: string;
-  title: string;
-  beats: string[];
-};
+function emptyCampaign(): CampaignState {
+  const run = rollStoryRun(createSeed());
+  return {
+    version: STORAGE_VERSION,
+    chapter: "intro",
+    panel: 0,
+    seed: run.seed,
+    premiseId: run.premise.id,
+    nightId: run.night.id,
+    throughlineId: run.throughline.id,
+    cutsceneDone: false,
+    midpointSeen: false,
+    recap: [],
+    shotCache: {},
+  };
+}
 
 const EMPTY: CampaignState = {
   version: STORAGE_VERSION,
   chapter: "intro",
   panel: 0,
+  seed: "",
+  premiseId: "",
+  nightId: "",
+  throughlineId: "",
+  cutsceneDone: false,
+  midpointSeen: false,
+  recap: [],
+  shotCache: {},
 };
 
 export const EMPTY_SNAPSHOT = JSON.stringify(EMPTY);
-
-function page(kicker: string, title: string, beats: string[]): StoryPage {
-  return { kicker, title, beats };
-}
-
-export const INTRO_PAGES: StoryPage[] = [
-  page("PROBE", "They already have your name", [
-    "This is not a job board. There is no listing and no department menu.",
-    "A clerk you will never meet printed your name. That was the application.",
-    "You do not pick the role. The building sends someone. You sit down.",
-  ]),
-  page("The loop", "Twelve hours. One file.", [
-    "Each contact messages you first. Each hour ends with a letter.",
-    "They will not tell you what they are. You answer anyway.",
-    "After twelve, PROBE writes the ending. The chats are the only door.",
-  ]),
-];
-
-export const ROUND_PAGES: StoryPage[] = [
-  page("Round 1", "Your file was pulled", [
-    "A name on a list was enough. Do not ask who recommended you.",
-    "The first interviewer will message. The hour starts when they decide.",
-  ]),
-  page("Round 2", "They already talked", [
-    "Your last conversation was forwarded. The next person has notes.",
-    "They will not tell you what those notes say. Keep answers short.",
-  ]),
-  page("Round 3", "The building knows you", [
-    "Badge printers are faster than offers. Someone new wants a private hour.",
-    "The chair may still be warm. Do not mention it.",
-  ]),
-  page("Round 4", "No one is HR anymore", [
-    "The tone changed. They still call it an interview.",
-    "Titles on the door will not match titles in the chat. Sit anyway.",
-  ]),
-  page("Round 5", "The role is a rumor", [
-    "They asked for you by a heading you never claimed.",
-    "The assignment is already printed. Refusing is a different letter.",
-  ]),
-  page("Round 6", "Halfway is not safety", [
-    "People who leave early do not get copies of their file.",
-    "Speak as if the walls take minutes. They do.",
-  ]),
-  page("Round 7", "The notes got personal", [
-    "Someone underlined things you did not say.",
-    "Correct them if you can. Do not accuse the interviewer.",
-  ]),
-  page("Round 8", "The board is watching", [
-    "This one has an audience you will never meet.",
-    "Every pause is a line in a document you cannot see.",
-  ]),
-  page("Round 9", "You are being kept", [
-    "Rejection and affection look the same on their stationery.",
-    "Tomorrow is already blocked. You did not block it.",
-  ]),
-  page("Round 10", "Almost staff", [
-    "The next contact thinks they already own your evenings.",
-    "That is not a metaphor they will explain. Ask about the work only.",
-  ]),
-  page("Round 11", "One more door", [
-    "If you run, the file still exists. If you enter, you may get a letter.",
-    "Both are permanent. Sit. Pretend this is still about a job.",
-  ]),
-  page("Round 12", "Final contact", [
-    "This is the last interviewer in the building tonight.",
-    "After this, PROBE writes the ending. You do not.",
-  ]),
-];
-
-export const AFTERMATH_PAGES: Record<VerdictDecision, StoryPage[]> = {
-  hire: [
-    page("Letter", "They stamped hired", [
-      "Hired is not the same as free to leave. A badge pending is a hook.",
-      "The next interviewer received the stamp anyway. Keep walking.",
-    ]),
-  ],
-  reject: [
-    page("Letter", "They stamped rejected", [
-      "Your name did not leave the list. It moved down.",
-      "A no is still an hour for someone else. You do not get a vote.",
-    ]),
-  ],
-  callback: [
-    page("Letter", "They want another hour", [
-      "Callback. PROBE scheduled someone else first.",
-      "Later is not a redo. Tonight continues.",
-    ]),
-  ],
-  obsessed: [
-    page("Letter", "The letter was not professional", [
-      "The board kept it on file anyway. Do not answer after midnight.",
-      "The next contact already read the unprofessional parts.",
-    ]),
-  ],
-};
-
-export const ENDING_PAGES = {
-  kept: [
-    page("Ending", "They kept you", [
-      "Too many letters were personal. PROBE does not send you home.",
-      "Check your inbox. Do not answer after midnight. The chats remain.",
-    ]),
-  ],
-  staff: [
-    page("Ending", "Staff adjacent", [
-      "The board likes your numbers. Offers stacked.",
-      "Your badge is still pending. That is a kind of yes. Keep the letters.",
-    ]),
-  ],
-  sample: [
-    page("Ending", "Sample closed", [
-      "No hire. The printers stay quiet. You were useful as a measurement.",
-      "A new name is already printed. The chats remain if they want another sample.",
-    ]),
-  ],
-  mixed: [
-    page("Ending", "Mixed file", [
-      "Some doors opened. Some letters were cold. PROBE files you as unresolved.",
-      "The chats remain if they want another hour.",
-    ]),
-  ],
-} as const;
-
-export type EndingKey = keyof typeof ENDING_PAGES;
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -163,27 +90,58 @@ function notify() {
 function isChapter(value: unknown): value is CampaignChapter {
   return (
     value === "intro" ||
-    value === "meet" ||
+    value === "arrive" ||
     value === "aftermath" ||
+    value === "midpoint" ||
     value === "ending"
   );
+}
+
+function normalize(parsed: CampaignState): CampaignState {
+  if (!parsed.seed || !parsed.premiseId) {
+    return emptyCampaign();
+  }
+  return {
+    version: STORAGE_VERSION,
+    chapter: isChapter(parsed.chapter) ? parsed.chapter : "intro",
+    panel: Math.max(0, Number(parsed.panel) || 0),
+    seed: parsed.seed,
+    premiseId: parsed.premiseId,
+    nightId: parsed.nightId,
+    throughlineId: parsed.throughlineId,
+    cutsceneDone: Boolean(parsed.cutsceneDone),
+    midpointSeen: Boolean(parsed.midpointSeen),
+    recap: Array.isArray(parsed.recap) ? parsed.recap : [],
+    shotCache:
+      parsed.shotCache && typeof parsed.shotCache === "object"
+        ? parsed.shotCache
+        : {},
+  };
 }
 
 export function readCampaign(): CampaignState {
   if (!isBrowser()) return EMPTY;
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return EMPTY;
+    if (!raw) {
+      const rolled = emptyCampaign();
+      window.localStorage.setItem(KEY, JSON.stringify(rolled));
+      notify();
+      return rolled;
+    }
     const parsed = JSON.parse(raw) as CampaignState;
-    if (!parsed || parsed.version !== STORAGE_VERSION) return EMPTY;
-    if (!isChapter(parsed.chapter)) return EMPTY;
-    return {
-      version: STORAGE_VERSION,
-      chapter: parsed.chapter,
-      panel: Math.max(0, Number(parsed.panel) || 0),
-    };
+    if (!parsed || parsed.version !== STORAGE_VERSION) {
+      const rolled = emptyCampaign();
+      window.localStorage.setItem(KEY, JSON.stringify(rolled));
+      notify();
+      return rolled;
+    }
+    return normalize(parsed);
   } catch {
-    return EMPTY;
+    const rolled = emptyCampaign();
+    window.localStorage.setItem(KEY, JSON.stringify(rolled));
+    notify();
+    return rolled;
   }
 }
 
@@ -225,15 +183,59 @@ export function parseCampaignSnapshot(raw: string): CampaignState {
   try {
     const parsed = JSON.parse(raw) as CampaignState;
     if (!parsed || parsed.version !== STORAGE_VERSION) return EMPTY;
-    if (!isChapter(parsed.chapter)) return EMPTY;
-    return {
-      version: STORAGE_VERSION,
-      chapter: parsed.chapter,
-      panel: Math.max(0, Number(parsed.panel) || 0),
-    };
+    if (!parsed.seed) return EMPTY;
+    return normalize(parsed);
   } catch {
     return EMPTY;
   }
+}
+
+export function campaignRun(state: CampaignState): StoryRun | null {
+  if (!state.seed || !state.premiseId) return null;
+  return runFromIds(
+    state.seed,
+    state.premiseId,
+    state.nightId,
+    state.throughlineId
+  );
+}
+
+export function cacheShots(key: string, shots: Shot[]) {
+  const state = readCampaign();
+  writeCampaign({
+    ...state,
+    shotCache: { ...state.shotCache, [key]: shots },
+  });
+}
+
+export function rememberCutscene(entry: RecapEntry) {
+  const state = readCampaign();
+  const recap = state.recap.filter((item) => item.id !== entry.id);
+  recap.push(entry);
+  writeCampaign({ ...state, recap, cutsceneDone: true, panel: 0 });
+}
+
+export function chapterToKind(chapter: CampaignChapter): CutsceneKind {
+  if (chapter === "intro") return "prologue";
+  if (chapter === "arrive") return "arrive";
+  if (chapter === "aftermath") return "aftermath";
+  if (chapter === "midpoint") return "midpoint";
+  return "ending";
+}
+
+export function recapFromChapter(
+  chapter: CampaignChapter,
+  round: number,
+  shots: Shot[]
+): RecapEntry {
+  const kind = chapterToKind(chapter);
+  return {
+    id: `${kind}-${round}`,
+    kind,
+    title: recapTitle(kind, round),
+    round,
+    shots,
+  };
 }
 
 export function totalRounds() {
@@ -273,13 +275,17 @@ export function currentRoundLabel(
   contacts: AssignedContact[]
 ) {
   if (campaignEnded(contacts) || campaign.chapter === "ending") return "Ending";
-  if (contacts.length === 0) return "Continue the story";
+  if (!campaign.seed) return "The night has not started";
+  if (contacts.length === 0) return campaign.cutsceneDone ? "Continue" : "Prologue";
   const done = completedContacts(contacts).length;
   const current = activeContact(contacts);
   const remaining = totalRounds() - contacts.length;
   const round = done + (current || remaining > 0 ? 1 : 0);
-  return `Round ${round} of ${totalRounds()}`;
+  if (!campaign.cutsceneDone) return `Cutscene · Hour ${round}`;
+  return `Hour ${round} of ${totalRounds()}`;
 }
+
+export type EndingKey = "kept" | "staff" | "sample" | "mixed";
 
 export function endingKey(contacts: AssignedContact[]): EndingKey {
   const done = completedContacts(contacts);
@@ -293,77 +299,25 @@ export function endingKey(contacts: AssignedContact[]): EndingKey {
   return "mixed";
 }
 
-export function epilogue(contacts: AssignedContact[]) {
-  const pages = ENDING_PAGES[endingKey(contacts)];
-  const first = pages[0]!;
-  return {
-    kicker: first.kicker,
-    title: first.title,
-    body: first.beats.join(" "),
-  };
-}
-
-export function roundPage(roundNumber: number) {
-  const index = Math.min(
-    ROUND_PAGES.length - 1,
-    Math.max(0, roundNumber - 1)
-  );
-  return ROUND_PAGES[index]!;
-}
-
-export function briefingForRound(roundNumber: number) {
-  const first = roundPage(roundNumber);
-  return {
-    kicker: first.kicker,
-    title: first.title,
-    body: first.beats.join(" "),
-  };
-}
-
-export function meetPage(
-  name: string,
-  job: string,
-  roundNumber: number
-): StoryPage {
-  const briefing = roundPage(roundNumber);
-  return page(briefing.kicker, briefing.title, [
-    ...briefing.beats,
-    `${name} has the hour. The building assigned ${job}. They will message first.`,
-  ]);
-}
-
-export function pagesForChapter(
-  chapter: CampaignChapter,
-  contacts: AssignedContact[]
-): StoryPage[] {
-  const done = completedContacts(contacts);
-  const current = activeContact(contacts);
-  const remaining = totalRounds() - contacts.length;
-  const roundNumber = done.length + (current || remaining > 0 ? 1 : 0);
-
-  switch (chapter) {
-    case "intro":
-      return INTRO_PAGES;
-    case "meet":
-      return current
-        ? [meetPage(currentName(current), current.appliedJob, Math.max(1, roundNumber))]
-        : [roundPage(Math.max(1, roundNumber))];
-    case "aftermath": {
-      const last = done[0];
-      return last?.verdict
-        ? AFTERMATH_PAGES[last.verdict.decision]
-        : INTRO_PAGES;
-    }
-    case "ending":
-      return [...ENDING_PAGES[endingKey(contacts)]];
+export function endingTitle(contacts: AssignedContact[]) {
+  switch (endingKey(contacts)) {
+    case "kept":
+      return "They kept you";
+    case "staff":
+      return "Staff adjacent";
+    case "sample":
+      return "Sample closed";
+    case "mixed":
+      return "Mixed file";
   }
 }
 
-function currentName(contact: AssignedContact) {
-  return (
-    INTERVIEWERS.find((person) => person.id === contact.interviewerId)?.name ||
-    "Someone"
-  );
+export function epilogue(contacts: AssignedContact[]) {
+  return {
+    kicker: "Ending",
+    title: endingTitle(contacts),
+    body: aftermathLine("callback"),
+  };
 }
 
 export function reconcileCampaign(contacts: AssignedContact[]) {
@@ -374,39 +328,60 @@ export function reconcileCampaign(contacts: AssignedContact[]) {
   const remaining = totalRounds() - contacts.length;
 
   if (current) {
-    if (state.chapter !== "meet") {
-      writeCampaign({ version: STORAGE_VERSION, chapter: "meet", panel: 0 });
+    if (state.chapter !== "arrive") {
+      writeCampaign({
+        ...state,
+        chapter: "arrive",
+        panel: 0,
+        cutsceneDone: false,
+      });
     }
     return;
   }
 
+  if (state.chapter === "midpoint" && !state.midpointSeen) {
+    return;
+  }
+
   if (done.length > 0 && remaining > 0) {
-    if (state.chapter !== "aftermath") {
+    if (state.chapter !== "aftermath" && state.chapter !== "midpoint") {
       writeCampaign({
-        version: STORAGE_VERSION,
+        ...state,
         chapter: "aftermath",
         panel: 0,
+        cutsceneDone: false,
       });
     }
     return;
   }
 
   if (campaignEnded(contacts)) {
-    if (state.chapter === "meet") {
+    if (state.chapter === "arrive") {
       writeCampaign({
-        version: STORAGE_VERSION,
+        ...state,
         chapter: "aftermath",
         panel: 0,
+        cutsceneDone: false,
       });
       return;
     }
     if (state.chapter !== "ending" && state.chapter !== "aftermath") {
-      writeCampaign({ version: STORAGE_VERSION, chapter: "ending", panel: 0 });
+      writeCampaign({
+        ...state,
+        chapter: "ending",
+        panel: 0,
+        cutsceneDone: false,
+      });
     }
     return;
   }
 
   if (contacts.length === 0 && state.chapter !== "intro") {
-    writeCampaign({ version: STORAGE_VERSION, chapter: "intro", panel: 0 });
+    writeCampaign({
+      ...state,
+      chapter: "intro",
+      panel: 0,
+      cutsceneDone: false,
+    });
   }
 }

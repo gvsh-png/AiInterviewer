@@ -1,34 +1,64 @@
 "use client";
 
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import CutscenePlayer from "@/components/CutscenePlayer";
+import PersonaAvatar from "@/components/PersonaAvatar";
 import { getInterviewer } from "@/lib/interviewers";
 import {
   assignNextStoryContact,
   getContactsSnapshot,
   parseContactsSnapshot,
+  readContacts,
   subscribeToContacts,
   unusedInterviewers,
 } from "@/lib/contacts";
 import {
   EMPTY_SNAPSHOT,
   activeContact,
+  cacheShots,
+  campaignRun,
+  chapterToKind,
   completedContacts,
+  currentRoundLabel,
+  endingTitle,
   getCampaignSnapshot,
-  meetPage,
-  pagesForChapter,
   parseCampaignSnapshot,
+  readCampaign,
+  recapFromChapter,
   reconcileCampaign,
+  rememberCutscene,
   subscribeToCampaign,
   totalRounds,
   updateCampaign,
 } from "@/lib/campaign";
+import {
+  assembleShots,
+  cacheKey,
+  type CutsceneContext,
+  type CutsceneKind,
+  type Shot,
+} from "@/lib/cutscenes";
 import { coverJobLine, coverRoleLine } from "@/lib/cover";
-import PersonaAvatar from "@/components/PersonaAvatar";
 
-export default function StoryDesk() {
+type Props = {
+  /** Full-bleed player on /story. Inbox only teases the pending scene. */
+  playHere?: boolean;
+};
+
+export default function StoryDesk({ playHere = false }: Props) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [replay, setReplay] = useState<Shot[] | null>(null);
+  const freezeShots = useRef(false);
+
   const campaignRaw = useSyncExternalStore(
     subscribeToCampaign,
     getCampaignSnapshot,
@@ -49,9 +79,20 @@ export default function StoryDesk() {
   );
 
   useEffect(() => {
-    reconcileCampaign(contacts);
-  }, [contacts, campaignRaw]);
+    readCampaign();
+    reconcileCampaign(readContacts());
+  }, [contactsRaw, campaignRaw]);
 
+  const run = useMemo(
+    () => campaignRun(campaign),
+    [
+      campaign.seed,
+      campaign.premiseId,
+      campaign.nightId,
+      campaign.throughlineId,
+    ]
+  );
+  const kind = chapterToKind(campaign.chapter);
   const done = completedContacts(contacts);
   const current = activeContact(contacts);
   const remaining = unusedInterviewers().length;
@@ -60,147 +101,294 @@ export default function StoryDesk() {
     : null;
   const last = done[0] ?? null;
   const lastPerson = last ? getInterviewer(last.interviewerId) : null;
-  const roundNumber = Math.min(
-    totalRounds(),
-    done.length + (current ? 1 : remaining > 0 ? 1 : 0)
-  );
-
-  const pages =
-    campaign.chapter === "meet" && currentPerson && current
-      ? [meetPage(currentPerson.name, current.appliedJob, roundNumber)]
-      : pagesForChapter(campaign.chapter, contacts);
-
-  const panel = Math.min(campaign.panel, Math.max(0, pages.length - 1));
-  const page = pages[panel]!;
-  const isLast = panel >= pages.length - 1;
+  const round = cutsceneRound(kind, done.length, Boolean(current), remaining);
+  const pending = playHere && !campaign.cutsceneDone && !replay;
   const person =
-    campaign.chapter === "meet"
+    kind === "arrive"
       ? currentPerson
-      : campaign.chapter === "aftermath"
+      : kind === "aftermath"
         ? lastPerson
-        : null;
+        : currentPerson;
 
-  const continueLabel = () => {
-    if (!isLast) return "Continue";
-    switch (campaign.chapter) {
-      case "intro":
-        return "I'm in";
-      case "meet":
-        return "Open chat";
-      case "aftermath":
-        return remaining > 0 ? "Next interview" : "See the ending";
-      case "ending":
-        return "Back to chats";
-    }
-  };
+  const hires = done.filter((item) => item.verdict?.decision === "hire").length;
+  const obsessed = done.filter(
+    (item) => item.verdict?.decision === "obsessed"
+  ).length;
+  const rejects = done.filter(
+    (item) => item.verdict?.decision === "reject"
+  ).length;
+  const closeTitle = endingTitle(contacts);
+  const personJob = current?.appliedJob || person?.job || "";
 
-  const goBack = () => {
-    if (panel <= 0) return;
-    updateCampaign({ panel: panel - 1 });
-  };
+  const ctx = useMemo((): CutsceneContext | null => {
+    if (!run) return null;
+    return {
+      run,
+      kind,
+      round,
+      total: totalRounds(),
+      person: person
+        ? {
+            name: person.name,
+            title: person.title,
+            company: person.company,
+            job: personJob,
+          }
+        : null,
+      lastVerdict: last?.verdict?.decision ?? null,
+      lastName: lastPerson?.name ?? null,
+      hires,
+      obsessed,
+      rejects,
+      endingTitle: closeTitle,
+    };
+  }, [
+    run,
+    kind,
+    round,
+    person,
+    personJob,
+    last?.verdict?.decision,
+    lastPerson?.name,
+    hires,
+    obsessed,
+    rejects,
+    closeTitle,
+  ]);
 
-  const advance = () => {
-    if (busy) return;
-    if (!isLast) {
-      updateCampaign({ panel: panel + 1 });
-      return;
-    }
+  useEffect(() => {
+    if (!pending || !ctx || !run) return;
+    freezeShots.current = false;
+    const key = cacheKey(ctx);
+    const cached = readCampaign().shotCache[key];
+    const local = assembleShots(ctx);
+    setShots(cached ?? local);
+    if (cached) return;
 
-    if (campaign.chapter === "intro") {
-      setBusy(true);
+    const controller = new AbortController();
+    fetch("/api/story", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: ctx.kind,
+        seed: run.seed,
+        premiseId: run.premise.id,
+        nightId: run.night.id,
+        throughlineId: run.throughline.id,
+        round: ctx.round,
+        total: ctx.total,
+        person: ctx.person,
+        lastVerdict: ctx.lastVerdict,
+        lastName: ctx.lastName,
+        hires: ctx.hires,
+        obsessed: ctx.obsessed,
+        rejects: ctx.rejects,
+        endingTitle: ctx.endingTitle,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const data = (await res.json()) as { shots?: Shot[] };
+        if (!res.ok || !data.shots?.length) return;
+        if (freezeShots.current) return;
+        setShots(data.shots);
+        cacheShots(key, data.shots);
+      })
+      .catch(() => {
+        /* local shots already on screen */
+      });
+
+    return () => controller.abort();
+  }, [pending, ctx, run]);
+
+  const finishChapter = useCallback(() => {
+    freezeShots.current = true;
+    const filed = shots.length
+      ? shots
+      : ctx
+        ? assembleShots(ctx)
+        : [];
+    rememberCutscene(
+      recapFromChapter(campaign.chapter, round, filed)
+    );
+
+    if (kind === "prologue") {
       assignNextStoryContact();
-      updateCampaign({ chapter: "meet", panel: 0 });
-      setBusy(false);
+      updateCampaign({ chapter: "arrive", cutsceneDone: false });
       return;
     }
 
-    if (campaign.chapter === "meet") {
-      if (current) router.push(`/interview/${current.interviewerId}`);
+    if (kind === "arrive" && current) {
+      router.push(`/interview/${current.interviewerId}`);
       return;
     }
 
-    if (campaign.chapter === "aftermath") {
-      if (remaining > 0) {
-        setBusy(true);
-        assignNextStoryContact();
-        updateCampaign({ chapter: "meet", panel: 0 });
-        setBusy(false);
+    if (kind === "aftermath") {
+      const state = readCampaign();
+      if (done.length >= 6 && !state.midpointSeen && remaining > 0) {
+        updateCampaign({ chapter: "midpoint", cutsceneDone: false });
         return;
       }
-      updateCampaign({ chapter: "ending", panel: 0 });
+      if (remaining > 0) {
+        assignNextStoryContact();
+        updateCampaign({ chapter: "arrive", cutsceneDone: false });
+        return;
+      }
+      updateCampaign({ chapter: "ending", cutsceneDone: false });
       return;
     }
 
-    router.push("/");
-  };
+    if (kind === "midpoint") {
+      assignNextStoryContact();
+      updateCampaign({
+        chapter: "arrive",
+        cutsceneDone: false,
+        midpointSeen: true,
+      });
+      return;
+    }
+  }, [
+    campaign.chapter,
+    ctx,
+    current,
+    done.length,
+    kind,
+    remaining,
+    round,
+    router,
+    shots,
+  ]);
+
+  if (replay) {
+    return (
+      <CutscenePlayer
+        shots={replay}
+        person={person}
+        actionLabel="Back"
+        onComplete={() => setReplay(null)}
+      />
+    );
+  }
+
+  if (pending) {
+    return (
+      <CutscenePlayer
+        key={`${campaign.chapter}-${current?.interviewerId ?? "none"}-${round}`}
+        shots={shots.length > 0 ? shots : ctx ? assembleShots(ctx) : []}
+        person={person}
+        loading={shots.length === 0 && !ctx}
+        actionLabel={actionLabel(kind, remaining, done.length)}
+        onAdvance={() => {
+          freezeShots.current = true;
+        }}
+        onComplete={finishChapter}
+      />
+    );
+  }
 
   return (
     <section className="story-desk">
       <div className="story-copy">
-        <p className="app-kicker">{page.kicker}</p>
-        <h2>{page.title}</h2>
-        {page.beats.map((beat, index) => (
-          <p key={`${index}-${beat.slice(0, 24)}`} className="story-beat">
-            {beat}
+        <p className="app-kicker">Campaign</p>
+        <h2>{currentRoundLabel(campaign, contacts)}</h2>
+        {run ? (
+          <p className="story-beat">
+            {run.premise.title}. {run.night.title}. {run.throughline.title}.
           </p>
-        ))}
+        ) : (
+          <p className="story-beat">The night has not started.</p>
+        )}
 
-        {person && current && campaign.chapter === "meet" ? (
-          <div className="story-contact">
-            <PersonaAvatar interviewer={person} size="md" />
-            <div>
-              <strong>{person.name}</strong>
-              <span>
-                {coverRoleLine(person)} · {coverJobLine(current.appliedJob)}
-              </span>
-            </div>
-          </div>
-        ) : null}
-
-        {person && last && campaign.chapter === "aftermath" ? (
-          <div className="story-contact">
-            <PersonaAvatar interviewer={person} size="md" />
-            <div>
-              <strong>{person.name}</strong>
-              <span>Letter is in the chat</span>
-            </div>
-          </div>
-        ) : null}
-
-        {pages.length > 1 ? (
-          <div className="story-dots" aria-hidden>
-            {pages.map((item, index) => (
-              <span
-                key={`${item.title}-${index}`}
-                className={index === panel ? "on" : ""}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        <div className="story-controls">
-          {pages.length > 1 ? (
-            <button
-              type="button"
-              className="text-button"
-              onClick={goBack}
-              disabled={panel <= 0}
-            >
-              Back
-            </button>
-          ) : (
-            <span />
-          )}
+        {!campaign.cutsceneDone ? (
           <button
             type="button"
             className="start-chat-button"
-            onClick={advance}
-            disabled={busy}
+            onClick={() => router.push("/story")}
           >
-            {continueLabel()}
+            Play the next scene
           </button>
-        </div>
+        ) : null}
+
+        {campaign.chapter === "ending" && campaign.cutsceneDone ? (
+          <p className="story-beat">
+            {endingTitle(contacts)}. The chats remain if they want another hour.
+          </p>
+        ) : null}
+
+        {campaign.recap.length > 0 ? (
+          <ol className="story-recap">
+            {campaign.recap.map((entry) => (
+              <li key={entry.id}>
+                <div>
+                  <strong>{entry.title}</strong>
+                  <span>{entry.shots[0]?.line}</span>
+                </div>
+                {entry.shots.length > 0 ? (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setReplay(entry.shots)}
+                  >
+                    Replay
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="story-beat">Scenes you play will file here as a recap.</p>
+        )}
+
+        {done.length > 0 ? (
+          <ul className="story-letters">
+            {done.map((item) => {
+              const npc = getInterviewer(item.interviewerId);
+              if (!npc || !item.verdict) return null;
+              return (
+                <li key={item.interviewerId}>
+                  <PersonaAvatar interviewer={npc} size="sm" />
+                  <div>
+                    <strong>{npc.name}</strong>
+                    <span>
+                      {coverRoleLine(npc)} · {coverJobLine(item.appliedJob)} ·{" "}
+                      {item.verdict.decision}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
       </div>
     </section>
   );
+}
+
+function cutsceneRound(
+  kind: CutsceneKind,
+  doneCount: number,
+  hasCurrent: boolean,
+  remaining: number
+) {
+  if (kind === "prologue") return 1;
+  if (kind === "midpoint") return 6;
+  if (kind === "ending") return 12;
+  if (kind === "aftermath") return Math.max(1, doneCount);
+  return Math.min(
+    12,
+    doneCount + (hasCurrent || remaining > 0 ? 1 : 0) || 1
+  );
+}
+
+function actionLabel(
+  kind: CutsceneKind,
+  remaining: number,
+  doneCount: number
+) {
+  if (kind === "prologue") return "I am in";
+  if (kind === "arrive") return "Open chat";
+  if (kind === "midpoint") return "Continue";
+  if (kind === "ending") return "File the night";
+  if (doneCount >= 6 && remaining > 0) return "Continue";
+  return remaining > 0 ? "Next interview" : "See the ending";
 }

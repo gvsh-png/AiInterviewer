@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import MessengerNav from "@/components/MessengerNav";
 import StoryDesk from "@/components/StoryDesk";
@@ -10,11 +10,14 @@ import {
   currentRoundLabel,
   getCampaignSnapshot,
   parseCampaignSnapshot,
+  readCampaign,
+  reconcileCampaign,
   subscribeToCampaign,
 } from "@/lib/campaign";
 import {
   getContactsSnapshot,
   parseContactsSnapshot,
+  readContacts,
   subscribeToContacts,
 } from "@/lib/contacts";
 
@@ -29,11 +32,25 @@ export default function StoryScreen() {
     getContactsSnapshot,
     () => "[]"
   );
-  const subtitle = useMemo(() => {
-    const campaign = parseCampaignSnapshot(campaignRaw);
-    const contacts = parseContactsSnapshot(contactsRaw);
-    return currentRoundLabel(campaign, contacts);
-  }, [campaignRaw, contactsRaw]);
+  const campaign = useMemo(
+    () => parseCampaignSnapshot(campaignRaw),
+    [campaignRaw]
+  );
+  const contacts = useMemo(
+    () => parseContactsSnapshot(contactsRaw),
+    [contactsRaw]
+  );
+  const subtitle = currentRoundLabel(campaign, contacts);
+  const playing = Boolean(campaign.seed) && !campaign.cutsceneDone;
+
+  useEffect(() => {
+    readCampaign();
+    reconcileCampaign(readContacts());
+  }, []);
+
+  if (playing) {
+    return <StoryDesk playHere />;
+  }
 
   return (
     <main className="messenger-shell story-shell">

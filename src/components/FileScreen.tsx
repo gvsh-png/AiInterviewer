@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import MessengerNav from "@/components/MessengerNav";
 import NightNote from "@/components/NightNote";
@@ -10,12 +10,15 @@ import {
   EMPTY_SNAPSHOT,
   activeContact,
   campaignEnded,
+  campaignRun,
   completedContacts,
   getCampaignSnapshot,
   parseCampaignSnapshot,
+  readCampaign,
   subscribeToCampaign,
   totalRounds,
 } from "@/lib/campaign";
+import { tonightMemo } from "@/lib/storySeed";
 import {
   getContactsSnapshot,
   parseContactsSnapshot,
@@ -64,11 +67,19 @@ export default function FileScreen() {
   );
   const file = useMemo(() => parseFileSnapshot(fileRaw), [fileRaw]);
 
+  useEffect(() => {
+    readCampaign();
+  }, []);
+
   const done = completedContacts(contacts);
   const current = activeContact(contacts);
   const hires = done.filter((item) => item.verdict?.decision === "hire").length;
   const letters = done.filter((item) => item.verdict);
-  const memos = unlockedMemos(done.length);
+  const run = campaignRun(campaign);
+  const memos = [
+    ...(run ? [tonightMemo(run)] : []),
+    ...unlockedMemos(done.length),
+  ];
   const ended = campaignEnded(contacts) || campaign.chapter === "ending";
   const canRequestBadge = hires >= 3 && !file.badgeRequested;
   const hours = Array.from({ length: totalRounds() }, (_, index) => {

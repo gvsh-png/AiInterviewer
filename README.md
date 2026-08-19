@@ -5,15 +5,35 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 ## Features
 
 - Empty inbox on first visit — no character roster, no plus button, no job picker
-- **Story** tab: short prologue, then the assigned contact, aftermath, and ending — same messenger layout as chats
+- **Story** tab: full-screen cutscenes (prologue, arrival, aftermath, midpoint, ending), then a recap you can replay
+- Each run rolls a random premise, night, and through-line; OpenRouter rewrites the shots when a key is set
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call
-- **File** tab: building hours, letters, night notes, memos, and a badge request
+- **File** tab: building hours, letters, night notes, memos (including tonight's rolled memo), and a badge request
 - After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)
-- Speech-to-text + TTS via OpenRouter
+- Speech-to-text + TTS via OpenRouter, including a narrator voice on cutscenes
 - Occasional in-character photo dumps
+
+## Local run
+
+```bash
+npm install
+cp .env.example .env.local
+# set OPENROUTER_API_KEY and SITE_PASSWORD
+npm run dev
+```
+
+## Deploy on Vercel
+
+1. Import the repo in Vercel
+2. Set `OPENROUTER_API_KEY` and `SITE_PASSWORD`
+3. Deploy
+
+## Hidden interviewer pool
+
+Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever the story assigns. Reset in Settings clears chats, contacts, campaign progress, and file notes.
 
 ## Local run
 
