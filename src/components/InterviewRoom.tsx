@@ -72,8 +72,19 @@ import {
   type HitPop,
   type PaperScrap,
 } from "@/lib/hits";
+import {
+  MOOD_RECIPES,
+  PERSON_MOODS,
+  interviewScoreMood,
+} from "@/lib/scoreMood";
+import {
+  pickLiveDirection,
+  pickTalkCut,
+  type TalkCut,
+} from "@/lib/talkCuts";
 import ShockCutscene from "@/components/ShockCutscene";
 import HitLayer from "@/components/HitLayer";
+import TalkCutIn from "@/components/TalkCutIn";
 
 type Line = {
   id: string;
@@ -137,9 +148,14 @@ export default function InterviewRoom({
   const [punch, setPunch] = useState(false);
   const [invertFlash, setInvertFlash] = useState(false);
   const [flicker, setFlicker] = useState(false);
+  const [talkCut, setTalkCut] = useState<{
+    cut: TalkCut;
+    lineId: string;
+  } | null>(null);
   const comboRef = useRef({ stance: "work" as Stance | null, count: 0 });
   const stampedRef = useRef(false);
   const alertedRef = useRef(false);
+  const talkUsedRef = useRef<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const usedShockRef = useRef<string[]>([]);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -227,6 +243,20 @@ export default function InterviewRoom({
     ? Math.min(meta.turnCount, windowTurns.forceVerdict)
     : Math.min(meta.turnCount + 1, windowTurns.forceVerdict);
   const showThinking = busy || preparingSpeech;
+  const lastQuestion = meta.turnCount >= windowTurns.forceVerdict - 1 && !decided;
+  const scoreMood = interviewScoreMood({
+    home: PERSON_MOODS[interviewer.id],
+    phase: meta.phase,
+    stance,
+    stress: stress.stress,
+    alert: stress.alert,
+    lastQuestion,
+  });
+  const direction = pickLiveDirection(
+    campaign.seed || interviewer.id,
+    round,
+    meta.turnCount
+  );
 
   useEffect(() => {
     lockedRef.current = inputLocked;
@@ -237,13 +267,13 @@ export default function InterviewRoom({
   }, [usedShockIds]);
 
   useEffect(() => {
-    void startPersonScore(interviewer.id);
+    void startPersonScore(interviewer.id, scoreMood);
     return () => stopNightScore();
-  }, [interviewer.id]);
+  }, [interviewer.id, scoreMood]);
 
   useEffect(() => {
     const kick = () => {
-      void startPersonScore(interviewer.id);
+      void startPersonScore(interviewer.id, scoreMood);
       void unlockScore();
     };
     window.addEventListener("pointerdown", kick);
@@ -252,7 +282,7 @@ export default function InterviewRoom({
       window.removeEventListener("pointerdown", kick);
       window.removeEventListener("keydown", kick);
     };
-  }, [interviewer.id]);
+  }, [interviewer.id, scoreMood]);
 
   useEffect(() => {
     setScoreBpm(stress.bpm);
@@ -297,6 +327,33 @@ export default function InterviewRoom({
     window.setTimeout(() => setInvertFlash(false), 200);
     window.setTimeout(() => setScraps([]), 2200);
   }, [closedVerdict, pushHit]);
+
+  useEffect(() => {
+    if (!themTalking || shockCut || decided) return;
+    const lineId = speechReveal?.lineId;
+    if (!lineId) return;
+    const cut = pickTalkCut(
+      campaign.seed || interviewer.id,
+      meta.turnCount,
+      talkUsedRef.current
+    );
+    if (!cut) return;
+    const delay = 850 + (meta.turnCount % 3) * 280;
+    const timer = window.setTimeout(() => {
+      if (talkUsedRef.current.includes(cut.id)) return;
+      talkUsedRef.current = [...talkUsedRef.current, cut.id];
+      setTalkCut({ cut, lineId });
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [
+    themTalking,
+    shockCut,
+    decided,
+    campaign.seed,
+    interviewer.id,
+    meta.turnCount,
+    speechReveal?.lineId,
+  ]);
 
   const onFinalSpeech = useCallback((text: string) => {
     if (lockedRef.current) return;
@@ -676,6 +733,8 @@ export default function InterviewRoom({
     comboRef.current = { stance: null, count: 0 };
     stampedRef.current = false;
     alertedRef.current = false;
+    talkUsedRef.current = [];
+    setTalkCut(null);
     void startPersonScore(interviewer.id);
     void unlockScore();
     updateContact(interviewer.id, {
@@ -738,6 +797,8 @@ export default function InterviewRoom({
     comboRef.current = { stance: null, count: 0 };
     stampedRef.current = false;
     alertedRef.current = false;
+    talkUsedRef.current = [];
+    setTalkCut(null);
     updateContact(interviewer.id, {
       verdict: undefined,
       preview: "New interview",
@@ -805,7 +866,7 @@ export default function InterviewRoom({
 
   return (
     <main
-      className={`messenger-shell thread-shell${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}`}
+      className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}`}
       style={themeStyle(interviewer.theme) as CSSProperties}
     >
       <ContactsSidebar selectedId={interviewer.id} compact />
@@ -881,7 +942,7 @@ export default function InterviewRoom({
             ♥
           </span>
           <div className="stress-meta">
-            <span>{stress.label}</span>
+            <span>{MOOD_RECIPES[scoreMood].label}</span>
             <strong>{stress.bpm} BPM</strong>
           </div>
           <div className="stress-bar" aria-hidden>
@@ -932,10 +993,15 @@ export default function InterviewRoom({
               <div className="hour-brief">
                 <p className="app-kicker">
                   Hour {round} of {totalRounds()} · Question {questionNow} of{" "}
-                  {windowTurns.forceVerdict || QUESTIONS_PER_HOUR}
+                  {windowTurns.forceVerdict || QUESTIONS_PER_HOUR} ·{" "}
+                  {MOOD_RECIPES[scoreMood].label}
                 </p>
                 <strong>{directive.title}</strong>
                 <span>{directive.body}</span>
+                <p className="desk-direction">
+                  <em>{direction.kicker}</em>
+                  {direction.title}. {direction.body}
+                </p>
               </div>
               <div className="conversation-date">Today</div>
               {lines
@@ -1140,6 +1206,12 @@ export default function InterviewRoom({
             </div>
           </>
         )}
+        {talkCut &&
+        themTalking &&
+        !shockCut &&
+        talkCut.lineId === speechReveal?.lineId ? (
+          <TalkCutIn cut={talkCut.cut} direction={direction} />
+        ) : null}
       </section>
       {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
       <HitLayer hits={hits} scraps={scraps} />

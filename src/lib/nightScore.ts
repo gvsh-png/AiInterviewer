@@ -1,5 +1,6 @@
 import type { InterviewerId } from "@/lib/interviewers";
 import type { NightMood } from "@/lib/storySeed";
+import { MOOD_RECIPES, type ScoreMood } from "@/lib/scoreMood";
 
 type Wave = OscillatorType;
 
@@ -160,6 +161,9 @@ type Handle = {
   ctx: AudioContext;
   master: GainNode;
   nodes: AudioNode[];
+  melody: OscillatorNode | null;
+  stepTimer: number | null;
+  baseFreq: number;
 };
 
 let handle: Handle | null = null;
@@ -194,12 +198,16 @@ export function setMusicMuted(next: boolean) {
 
 export function startNightScore(mood: NightMood) {
   pendingPerson = null;
-  return startScore(`night:${mood}`, NIGHT_PATCHES[mood]);
+  const scoreMood =
+    mood === "paper" ? "tense" : mood === "empty" || mood === "overtime" ? "late" : "horror";
+  return startScore(`night:${mood}`, NIGHT_PATCHES[mood], scoreMood);
 }
 
-export function startPersonScore(id: InterviewerId) {
+export function startPersonScore(id: InterviewerId, mood?: ScoreMood) {
   pendingPerson = id;
-  return startScore(`person:${id}`, PERSON_PATCHES[id]);
+  const patch = PERSON_PATCHES[id];
+  const key = mood ? `person:${id}:${mood}` : `person:${id}`;
+  return startScore(key, patch, mood);
 }
 
 export async function unlockScore() {
@@ -376,7 +384,7 @@ export function playHitTone(kind: FxKind, combo = 1) {
   })();
 }
 
-async function startScore(key: string, patch: Patch) {
+async function startScore(key: string, patch: Patch, mood?: ScoreMood) {
   if (typeof window === "undefined") return;
   if (currentKey === key && handle) {
     if (!muted) {
@@ -407,7 +415,9 @@ async function startScore(key: string, patch: Patch) {
   master.gain.value = 0;
   master.connect(ctx.destination);
   const nodes: AudioNode[] = [master];
-  const wave = patch.wave || "sine";
+  const recipe = mood ? MOOD_RECIPES[mood] : null;
+  const wave = recipe?.wave || patch.wave || "sine";
+  const filterHz = recipe?.filter || patch.filter;
 
   for (const freq of patch.freqs) {
     const osc = ctx.createOscillator();
@@ -416,8 +426,8 @@ async function startScore(key: string, patch: Patch) {
     osc.type = wave;
     osc.frequency.value = freq;
     filter.type = "lowpass";
-    filter.frequency.value = patch.filter;
-    gain.gain.value = 0.28 / patch.freqs.length;
+    filter.frequency.value = filterHz;
+    gain.gain.value = 0.24 / patch.freqs.length;
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
     lfo.frequency.value = patch.lfo;
@@ -443,24 +453,77 @@ async function startScore(key: string, patch: Patch) {
   noise.loop = true;
   const noiseFilter = ctx.createBiquadFilter();
   noiseFilter.type = "lowpass";
-  noiseFilter.frequency.value = patch.filter * 0.7;
+  noiseFilter.frequency.value = filterHz * 0.7;
   const noiseGain = ctx.createGain();
-  noiseGain.gain.value = patch.noise;
+  noiseGain.gain.value = recipe?.noise ?? patch.noise;
   noise.connect(noiseFilter);
   noiseFilter.connect(noiseGain);
   noiseGain.connect(master);
   noise.start();
   nodes.push(noise, noiseFilter, noiseGain);
 
-  handle = { ctx, master, nodes };
+  const baseFreq = patch.freqs[0] || 55;
+  let melody: OscillatorNode | null = null;
+  let stepTimer: number | null = null;
+  if (recipe) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = recipe.wave;
+    osc.frequency.value = baseFreq * 2;
+    filter.type = "lowpass";
+    filter.frequency.value = recipe.filter;
+    gain.gain.value = recipe.melodyVol;
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
+    osc.start();
+    nodes.push(osc, gain, filter);
+    melody = osc;
+    let step = 0;
+    stepTimer = window.setInterval(() => {
+      if (!handle || handle.melody !== osc) return;
+      step = (step + 1) % recipe.steps.length;
+      const freq = baseFreq * 2 * Math.pow(2, recipe.steps[step]! / 12);
+      try {
+        osc.frequency.setTargetAtTime(freq, ctx.currentTime, 0.04);
+      } catch {
+        /* closed */
+      }
+    }, recipe.stepMs);
+
+    const pulse = ctx.createOscillator();
+    const pulseGain = ctx.createGain();
+    pulse.type = mood === "upbeat" ? "square" : "sine";
+    pulse.frequency.value = 980;
+    pulseGain.gain.value = 0;
+    pulse.connect(pulseGain);
+    pulseGain.connect(master);
+    pulse.start();
+    nodes.push(pulse, pulseGain);
+    const pulseLfo = ctx.createOscillator();
+    const pulseDepth = ctx.createGain();
+    pulseLfo.frequency.value = recipe.pulseHz;
+    pulseDepth.gain.value = mood === "upbeat" ? 0.035 : 0.02;
+    pulseLfo.connect(pulseDepth);
+    pulseDepth.connect(pulseGain.gain);
+    pulseLfo.start();
+    nodes.push(pulseLfo, pulseDepth);
+  }
+
+  handle = { ctx, master, nodes, melody, stepTimer, baseFreq };
   currentKey = key;
   currentVolume = patch.volume;
   const target = muted ? 0 : patch.volume;
-  master.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.7);
+  master.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.55);
   setScoreBpm(beatBpm);
 }
 
 export function stopNightScore() {
+  if (handle?.stepTimer) {
+    window.clearInterval(handle.stepTimer);
+    handle.stepTimer = null;
+  }
   if (beatTimer) {
     window.clearInterval(beatTimer);
     beatTimer = null;

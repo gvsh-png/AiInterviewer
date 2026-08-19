@@ -44,17 +44,17 @@ export const STANCES: Array<{
   {
     id: "work",
     label: "Stay on the work",
-    hint: "Answer the job. Do not soothe.",
+    hint: "Answer the job. Do not soothe. The glass is copying.",
   },
   {
     id: "probe",
     label: "Ask what they won't write",
-    hint: "Push for the thing that is not on paper.",
+    hint: "Push for the thing that is not on paper. Do not flinch.",
   },
   {
     id: "soften",
     label: "Don't leave them hanging",
-    hint: "Meet the person. The board will notice.",
+    hint: "Meet the person. The board will keep that.",
   },
 ];
 

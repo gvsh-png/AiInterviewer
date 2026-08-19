@@ -8,7 +8,8 @@ A story campaign of five voice interviews. You never pick the job. PROBE assigns
 - **Story** tab: pick one of three nights, then full-screen cutscenes (prologue, arrival, aftermath, midpoint, ending)
 - Each night is a different story kind; every cutscene shot generates a new photo and motion plate, with baked stills as fallback
 - Five hours, five questions each, then a letter. The fifth hour always closes.
-- Each interviewer has their own score under the chat; a tap unlocks it so autoplay does not stay silent
+- Each interviewer has their own score; it shifts between upbeat, horror, warm, tense, and late as the hour goes wrong
+- Desk directions change each question. Sometimes a baked cut-in plays over the chat while they are talking
 - Stress HUD with heart rate, a rising meter, red alert, room shake, and a copied-live ticker
 - Hit pops, combos, paper-stamp rain, grain, and juicy send/stamp sounds when you land a stance or a letter
 - Unskippable shock cutscenes fire from what you say (family, home, watching, staying late, softening, asking the glass). Pre-baked stills only.

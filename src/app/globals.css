@@ -2622,3 +2622,155 @@ a.text-button {
     transform: scale(1);
   }
 }
+
+.thread-shell.themed-hour .chat-thread {
+  position: relative;
+  background:
+    radial-gradient(
+      900px 420px at 50% -8%,
+      color-mix(in srgb, var(--sulfur) 18%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--moss-deep) 92%, #000) 0%,
+      color-mix(in srgb, var(--ink) 88%, #07070a) 100%
+    );
+  color: var(--paper);
+}
+
+.thread-shell.themed-hour .thread-top,
+.thread-shell.themed-hour .thread-header,
+.thread-shell.themed-hour .stress-hud {
+  background: color-mix(in srgb, var(--ink) 82%, var(--moss-deep));
+  color: var(--paper);
+  border-color: color-mix(in srgb, var(--sulfur) 28%, transparent);
+}
+
+.thread-shell.themed-hour .thread-person h1,
+.thread-shell.themed-hour .thread-person p,
+.thread-shell.themed-hour .stress-meta strong,
+.thread-shell.themed-hour .stress-hour {
+  color: var(--paper);
+}
+
+.thread-shell.themed-hour .composer {
+  background: color-mix(in srgb, var(--ink) 90%, #000);
+  border-top: 1px solid color-mix(in srgb, var(--sulfur) 30%, transparent);
+}
+
+.thread-shell.themed-hour .hour-brief {
+  border-color: color-mix(in srgb, var(--sulfur) 45%, transparent);
+  background: color-mix(in srgb, var(--ink) 70%, var(--sulfur));
+  color: var(--paper);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--sulfur) 18%, transparent);
+}
+
+.thread-shell.themed-hour .hour-brief span,
+.thread-shell.themed-hour .hour-brief .app-kicker {
+  color: color-mix(in srgb, var(--paper) 78%, var(--sulfur));
+}
+
+.desk-direction {
+  margin: 0.65rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px dashed color-mix(in srgb, var(--sulfur) 40%, transparent);
+  color: var(--paper);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.desk-direction em {
+  display: block;
+  margin-bottom: 0.12rem;
+  color: var(--sulfur-hot);
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.talk-cut {
+  pointer-events: none;
+  position: absolute;
+  z-index: 12;
+  left: 6%;
+  right: 6%;
+  top: 22%;
+  height: min(46%, 22rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--sulfur) 55%, #000);
+  background: #050506;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+  animation: talk-cut-in 0.35s ease-out;
+}
+
+.talk-still {
+  min-height: 0;
+}
+
+.talk-cut-copy {
+  display: grid;
+  align-content: end;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem 1.1rem;
+  background: linear-gradient(180deg, transparent, #050506 38%);
+  color: #f4f1ea;
+}
+
+.talk-cut-copy h3 {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.05rem, 2.4vw, 1.55rem);
+  line-height: 1.15;
+}
+
+.talk-cut-copy p {
+  margin: 0;
+  color: #c9c4b8;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.thread-shell.mood-horror .chat-thread {
+  box-shadow: inset 0 0 90px color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.thread-shell.mood-upbeat .chat-thread {
+  box-shadow: inset 0 0 80px color-mix(in srgb, var(--sulfur) 22%, transparent);
+}
+
+.thread-shell.mood-warm .chat-thread {
+  box-shadow: inset 0 0 80px color-mix(in srgb, #c45a7a 20%, transparent);
+}
+
+.thread-shell.mood-late .chat-thread {
+  box-shadow: inset 0 0 100px #000;
+}
+
+.thread-shell.them-talking .transcript {
+  filter: saturate(0.85) contrast(1.08);
+}
+
+@media (max-width: 720px) {
+  .talk-cut {
+    grid-template-columns: 1fr;
+    top: 18%;
+    height: min(52%, 20rem);
+  }
+}
+
+@keyframes talk-cut-in {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+    filter: contrast(1.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
