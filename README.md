@@ -12,6 +12,8 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call
+- Each hour has a **brief** you can hold or flag, and three stances (work / probe / soften) that change the interview
+- Later hours are shorter. Callbacks stay open until a real letter. The File tracks the sample.
 - **File** tab: building hours, letters, night notes, memos (including tonight's rolled memo), and a badge request
 - After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)

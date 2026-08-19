@@ -14,6 +14,32 @@ import {
   updateContact,
 } from "@/lib/contacts";
 import {
+  EMPTY_SNAPSHOT,
+  campaignRun,
+  completedContacts,
+  getCampaignSnapshot,
+  parseCampaignSnapshot,
+  subscribeToCampaign,
+  totalRounds,
+} from "@/lib/campaign";
+import {
+  EMPTY_FILE_SNAPSHOT,
+  getFileSnapshot,
+  getNote,
+  parseFileSnapshot,
+  subscribeToFile,
+} from "@/lib/fileCabinet";
+import {
+  STANCES,
+  clockLabel,
+  getDirective,
+  hourWindow,
+  isStance,
+  pickDirective,
+  scoreHour,
+  type Stance,
+} from "@/lib/gameplay";
+import {
   clearConversation,
   loadConversation,
   saveConversation,
@@ -74,6 +100,10 @@ export default function InterviewRoom({
   const [speechReveal, setSpeechReveal] = useState<SpeechReveal | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [stance, setStance] = useState<Stance>("work");
+  const [callbackLetter, setCallbackLetter] = useState<InterviewVerdict | null>(
+    null
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
@@ -87,6 +117,16 @@ export default function InterviewRoom({
     getContactsSnapshot,
     () => "[]"
   );
+  const campaignRaw = useSyncExternalStore(
+    subscribeToCampaign,
+    getCampaignSnapshot,
+    () => EMPTY_SNAPSHOT
+  );
+  const fileRaw = useSyncExternalStore(
+    subscribeToFile,
+    getFileSnapshot,
+    () => EMPTY_FILE_SNAPSHOT
+  );
   const contact = useMemo(
     () =>
       parseContactsSnapshot(contactsRaw).find(
@@ -94,12 +134,38 @@ export default function InterviewRoom({
       ) ?? null,
     [contactsRaw, interviewer.id]
   );
+  const campaign = useMemo(
+    () => parseCampaignSnapshot(campaignRaw),
+    [campaignRaw]
+  );
+  const file = useMemo(() => parseFileSnapshot(fileRaw), [fileRaw]);
+  const assigned = useMemo(
+    () => parseContactsSnapshot(contactsRaw),
+    [contactsRaw]
+  );
   const appliedJob = contact?.appliedJob || interviewer.job;
   const openingLine = coverOpeningLine(interviewer, appliedJob);
   const storedVerdict = contact?.verdict ?? null;
+  const done = completedContacts(assigned);
+  const round = useMemo(() => {
+    const order = [...assigned].sort((a, b) => a.createdAt - b.createdAt);
+    const index = order.findIndex((item) => item.interviewerId === interviewer.id);
+    return index >= 0 ? index + 1 : Math.max(1, order.length);
+  }, [assigned, interviewer.id]);
+  const run = campaignRun(campaign);
+  const directive =
+    getDirective(contact?.directiveId) ||
+    pickDirective(round, campaign.seed || "probe");
+  const windowTurns = hourWindow(round, Boolean(meta.callbackRound));
 
   const themTalking = speaking && speechReveal?.complete !== true;
-  const decided = Boolean(meta.verdict || storedVerdict);
+  const closedVerdict =
+    meta.verdict && meta.verdict.decision !== "callback"
+      ? meta.verdict
+      : storedVerdict && storedVerdict.decision !== "callback"
+        ? storedVerdict
+        : null;
+  const decided = Boolean(closedVerdict);
   const inputLocked = busy || preparingSpeech || themTalking || decided;
   const showThinking = busy || preparingSpeech;
 
@@ -142,8 +208,21 @@ export default function InterviewRoom({
           therapyScore: stored.meta.therapyScore ?? 0,
           phase: stored.meta.phase ?? "strict",
           lastImageTurn: stored.meta.lastImageTurn ?? 0,
+          stances: Array.isArray(stored.meta.stances)
+            ? stored.meta.stances.filter(isStance)
+            : [],
+          callbackRound: Boolean(stored.meta.callbackRound),
           verdict: stored.meta.verdict,
         });
+        const lastStance = stored.meta.stances?.at(-1);
+        if (lastStance && isStance(lastStance)) setStance(lastStance);
+        if (stored.meta.callbackRound && !stored.meta.verdict) {
+          setCallbackLetter({
+            decision: "callback",
+            letter:
+              "They asked for another pass. The letter is not finished.",
+          });
+        }
       }
       setHydrated(true);
     }, 0);
@@ -245,6 +324,29 @@ export default function InterviewRoom({
             meta,
             interviewerId: interviewer.id,
             appliedJob,
+            stance,
+            directiveId: directive.id,
+            building: {
+              round,
+              total: totalRounds(),
+              hires: done.filter((item) => item.verdict?.decision === "hire")
+                .length,
+              rejects: done.filter((item) => item.verdict?.decision === "reject")
+                .length,
+              obsessed: done.filter(
+                (item) => item.verdict?.decision === "obsessed"
+              ).length,
+              cleanPasses: done.filter((item) => item.hourScore?.passed).length,
+              flagged: done.filter((item) => item.hourScore && !item.hourScore.passed)
+                .length,
+              midpoint: campaign.midpointSeen || round >= 7,
+              badgeRequested: file.badgeRequested,
+              hasNote: Boolean(getNote(file, interviewer.id)?.text),
+              throughlineEcho: run?.throughline.echo || "",
+              nightTitle: run?.night.title || "",
+              premiseTitle: run?.premise.title || "",
+              callbackRound: meta.callbackRound,
+            },
           }),
         });
         const data = await res.json();
@@ -262,17 +364,55 @@ export default function InterviewRoom({
         const verdict = (data.verdict || nextMeta.verdict) as
           | InterviewVerdict
           | undefined;
+        const nextStances = Array.isArray(nextMeta.stances)
+          ? nextMeta.stances.filter(isStance)
+          : [...(meta.stances || []), stance];
+        const callback =
+          verdict?.decision === "callback" || Boolean(nextMeta.callbackRound);
+        const closed =
+          verdict && verdict.decision !== "callback" ? verdict : undefined;
         setMeta({
           turnCount: nextMeta.turnCount ?? 0,
           therapyScore: nextMeta.therapyScore ?? 0,
           phase: nextMeta.phase ?? "strict",
           lastImageTurn: nextMeta.lastImageTurn ?? 0,
-          verdict,
+          stances: nextStances,
+          callbackRound: callback && !closed,
+          verdict: closed,
         });
-        updateContact(interviewer.id, {
-          preview: reply,
-          verdict,
-        });
+        if (verdict?.decision === "callback" && !closed) {
+          setCallbackLetter(verdict);
+          updateContact(interviewer.id, {
+            preview: reply,
+            verdict: undefined,
+            callbackPending: true,
+            directiveId: contact?.directiveId || directive.id,
+          });
+        } else if (closed) {
+          const hourScore = scoreHour({
+            directive,
+            stances: nextStances,
+            userTexts: nextMessages
+              .filter((item) => item.role === "user")
+              .map((item) => item.content),
+            therapyScore: nextMeta.therapyScore ?? 0,
+            verdict: closed.decision,
+            job: appliedJob,
+          });
+          setCallbackLetter(null);
+          updateContact(interviewer.id, {
+            preview: reply,
+            verdict: closed,
+            callbackPending: false,
+            hourScore,
+            directiveId: contact?.directiveId || directive.id,
+          });
+        } else {
+          updateContact(interviewer.id, {
+            preview: reply,
+            directiveId: contact?.directiveId || directive.id,
+          });
+        }
         setMessages([...nextMessages, { role: "assistant", content: reply }]);
         setLines([
           ...nextLines,
@@ -304,6 +444,14 @@ export default function InterviewRoom({
       decided,
       startPersonaSpeech,
       stopListen,
+      stance,
+      directive,
+      round,
+      done,
+      campaign.midpointSeen,
+      file,
+      run,
+      contact,
     ]
   );
 
@@ -324,11 +472,34 @@ export default function InterviewRoom({
     const themId = uid();
     setLines([{ id: themId, role: "them", text: openingLine }]);
     setMessages([{ role: "assistant", content: openingLine }]);
-    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
+    setMeta({
+      turnCount: 0,
+      therapyScore: 0,
+      phase: "strict",
+      lastImageTurn: 0,
+      stances: [],
+      callbackRound: false,
+    });
     setTyped("");
-    updateContact(interviewer.id, { preview: openingLine, verdict: undefined });
+    setCallbackLetter(null);
+    setStance("work");
+    updateContact(interviewer.id, {
+      preview: openingLine,
+      verdict: undefined,
+      callbackPending: false,
+      hourScore: undefined,
+      directiveId: contact?.directiveId || directive.id,
+    });
     startPersonaSpeech(themId, openingLine);
-  }, [cancel, stopListen, openingLine, interviewer.id, startPersonaSpeech]);
+  }, [
+    cancel,
+    stopListen,
+    openingLine,
+    interviewer.id,
+    startPersonaSpeech,
+    contact?.directiveId,
+    directive.id,
+  ]);
 
   useEffect(() => {
     if (!hydrated || !contact || started || storedVerdict || autoStartRef.current) {
@@ -345,11 +516,25 @@ export default function InterviewRoom({
     setStarted(false);
     setLines([]);
     setMessages([]);
-    setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
+    setMeta({
+      turnCount: 0,
+      therapyScore: 0,
+      phase: "strict",
+      lastImageTurn: 0,
+      stances: [],
+      callbackRound: false,
+    });
     setTyped("");
     setError(null);
     setSpeechReveal(null);
-    updateContact(interviewer.id, { verdict: undefined, preview: "New interview" });
+    setCallbackLetter(null);
+    setStance("work");
+    updateContact(interviewer.id, {
+      verdict: undefined,
+      preview: "New interview",
+      callbackPending: false,
+      hourScore: undefined,
+    });
     clearConversation(interviewer.id);
     autoStartRef.current = false;
   };
@@ -362,7 +547,7 @@ export default function InterviewRoom({
     router.refresh();
   };
 
-  const activeVerdict = meta.verdict || storedVerdict;
+  const activeVerdict = closedVerdict;
   const downloadLetter = () => {
     if (!activeVerdict) return;
     downloadVerdictPdf({
@@ -405,7 +590,9 @@ export default function InterviewRoom({
       ? "Speaking…"
       : showThinking
         ? interviewer.thinkingLine
-        : coverJobLine(appliedJob);
+        : decided
+          ? coverJobLine(appliedJob)
+          : clockLabel(meta.turnCount, windowTurns.forceVerdict);
 
   return (
     <main
@@ -506,6 +693,13 @@ export default function InterviewRoom({
         ) : (
           <>
             <div className="transcript" ref={scrollRef}>
+              <div className="hour-brief">
+                <p className="app-kicker">
+                  Hour {round} of {totalRounds()} · {directive.kicker}
+                </p>
+                <strong>{directive.title}</strong>
+                <span>{directive.body}</span>
+              </div>
               <div className="conversation-date">Today</div>
               {lines
                 .filter((line) => line.id !== pendingSpeechLineId)
@@ -580,11 +774,28 @@ export default function InterviewRoom({
                   </div>
                 </div>
               ) : null}
+              {callbackLetter && !decided ? (
+                <div className="verdict-card callback-card">
+                  <p className="app-kicker">{verdictLabel(callbackLetter.decision)}</p>
+                  <h3>{verdictHeadline(callbackLetter.decision)}</h3>
+                  <p>{callbackLetter.letter}</p>
+                  <p className="callback-note">
+                    The hour is not closed. They want another pass. Pick a stance
+                    and answer.
+                  </p>
+                </div>
+              ) : null}
               {activeVerdict && !themTalking && !showThinking ? (
                 <div className="verdict-card">
                   <p className="app-kicker">{verdictLabel(activeVerdict.decision)}</p>
                   <h3>{verdictHeadline(activeVerdict.decision)}</h3>
                   <p>{activeVerdict.letter}</p>
+                  {contact?.hourScore ? (
+                    <p className="callback-note">
+                      Brief {contact.hourScore.passed ? "held" : "flagged"}:{" "}
+                      {directive.title}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -610,57 +821,78 @@ export default function InterviewRoom({
                   </button>
                 </div>
               ) : (
-                <div className="composer-row">
-                  <button
-                    type="button"
-                    className={`mic-button ${listening ? "active" : ""}`}
-                    onClick={() => (listening ? stopListen() : tryStartListen())}
-                    disabled={!sttOk || inputLocked}
-                    aria-label={listening ? "Stop listening" : "Speak"}
-                  >
-                    {listening ? (
-                      <span className="stop-icon" />
-                    ) : (
-                      <svg viewBox="0 0 24 24" aria-hidden>
-                        <rect x="9" y="3" width="6" height="11" rx="3" />
-                        <path d="M6 11a6 6 0 0 0 12 0M12 17v4" />
-                      </svg>
-                    )}
-                  </button>
-                  <form
-                    className="message-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (inputLocked) return;
-                      void sendUserMessage(typed);
-                    }}
-                  >
-                    <input
-                      value={typed}
-                      onChange={(e) => setTyped(e.target.value)}
-                      placeholder={
-                        showThinking
-                          ? interviewer.thinkingLine
-                          : themTalking
-                            ? `${firstName} is talking…`
-                            : "Message"
-                      }
-                      disabled={inputLocked}
-                      readOnly={inputLocked}
-                      aria-label="Message"
-                    />
+                <>
+                  <div className="stance-row" role="radiogroup" aria-label="How you play this turn">
+                    {STANCES.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={stance === item.id}
+                        className={`stance-chip ${stance === item.id ? "active" : ""}`}
+                        onClick={() => setStance(item.id)}
+                        disabled={inputLocked}
+                        title={item.hint}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="stance-hint">
+                    {STANCES.find((item) => item.id === stance)?.hint}
+                  </p>
+                  <div className="composer-row">
                     <button
-                      type="submit"
-                      className="send-button"
-                      disabled={inputLocked || !typed.trim()}
-                      aria-label="Send"
+                      type="button"
+                      className={`mic-button ${listening ? "active" : ""}`}
+                      onClick={() => (listening ? stopListen() : tryStartListen())}
+                      disabled={!sttOk || inputLocked}
+                      aria-label={listening ? "Stop listening" : "Speak"}
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden>
-                        <path d="M4 12h16M13 5l7 7-7 7" />
-                      </svg>
+                      {listening ? (
+                        <span className="stop-icon" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" aria-hidden>
+                          <rect x="9" y="3" width="6" height="11" rx="3" />
+                          <path d="M6 11a6 6 0 0 0 12 0M12 17v4" />
+                        </svg>
+                      )}
                     </button>
-                  </form>
-                </div>
+                    <form
+                      className="message-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (inputLocked) return;
+                        void sendUserMessage(typed);
+                      }}
+                    >
+                      <input
+                        value={typed}
+                        onChange={(e) => setTyped(e.target.value)}
+                        placeholder={
+                          showThinking
+                            ? interviewer.thinkingLine
+                            : themTalking
+                              ? `${firstName} is talking…`
+                              : "Message"
+                        }
+                        disabled={inputLocked}
+                        readOnly={inputLocked}
+                        aria-label="Message"
+                      />
+                      <button
+                        type="submit"
+                        className="send-button"
+                        disabled={inputLocked || !typed.trim()}
+                        aria-label="Send"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden>
+                          <path d="M4 12h16M13 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </form>
+                  </div>
+                </>
               )}
             </div>
           </>

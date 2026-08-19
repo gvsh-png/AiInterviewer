@@ -137,8 +137,16 @@ export default function ContactsSidebar({
                 <div className="contact-preview-row">
                   <p>
                     {contact.verdict
-                      ? verdictLabel(contact.verdict.decision)
-                      : contact.preview || coverJobLine(contact.appliedJob)}
+                      ? `${verdictLabel(contact.verdict.decision)}${
+                          contact.hourScore
+                            ? contact.hourScore.passed
+                              ? " · held"
+                              : " · flagged"
+                            : ""
+                        }`
+                      : contact.callbackPending
+                        ? "Second pass"
+                        : contact.preview || coverJobLine(contact.appliedJob)}
                   </p>
                   {contact.preview && !contact.verdict ? (
                     <span className="contact-dot" aria-label="Has conversation" />

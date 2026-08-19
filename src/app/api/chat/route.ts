@@ -19,6 +19,15 @@ import {
   extractVerdict,
   mustIssueVerdict,
 } from "@/lib/verdict";
+import {
+  buildBuildingGuide,
+  buildStanceGuide,
+  getDirective,
+  hourWindow,
+  isStance,
+  type SampleStats,
+  type Stance,
+} from "@/lib/gameplay";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -28,6 +37,11 @@ type RequestBody = {
   meta?: Partial<ConversationMeta>;
   interviewerId?: string;
   appliedJob?: string;
+  stance?: string;
+  directiveId?: string;
+  building?: Partial<SampleStats> & {
+    callbackRound?: boolean;
+  };
 };
 
 export async function POST(req: NextRequest) {
@@ -68,28 +82,71 @@ export async function POST(req: NextRequest) {
     const priorTurns = messages.filter((m) => m.role === "user").length;
     const prevTherapy = body.meta?.therapyScore ?? 0;
     const lastImageTurn = body.meta?.lastImageTurn ?? 0;
+    const priorStances = Array.isArray(body.meta?.stances)
+      ? body.meta.stances.filter(isStance)
+      : [];
+    const stance: Stance = isStance(String(body.stance || ""))
+      ? (body.stance as Stance)
+      : "work";
+    const stances = [...priorStances, stance];
+    const callbackRound = Boolean(
+      body.meta?.callbackRound || body.building?.callbackRound
+    );
+    const round = Math.max(1, Number(body.building?.round) || 1);
+    const window = hourWindow(round, callbackRound);
     const therapyDelta = lastUser
       ? detectTherapyScoreDelta(lastUser.content)
       : 0;
-    const therapyScore = prevTherapy + therapyDelta;
+    const softenBonus = stance === "soften" ? 1 : 0;
+    const therapyScore = prevTherapy + therapyDelta + softenBonus;
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
-    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, 10);
-    const wantsVerdict = mustIssueVerdict(turnCount);
+    const photoEvery = round >= 7 ? 6 : 10;
+    const photoAllowed = canSharePhoto(turnCount, lastImageTurn, photoEvery);
+    const wantsVerdict = mustIssueVerdict(turnCount, window.forceVerdict);
+    const directive = getDirective(body.directiveId);
+    const softenHeavy = stances.filter((item) => item === "soften").length >= 2;
+    const workHeavy = stances.filter((item) => item === "work").length >= 2;
 
     const meta: ConversationMeta = {
       turnCount,
       therapyScore,
       phase,
       lastImageTurn,
+      stances,
+      callbackRound,
+    };
+    const sample: SampleStats = {
+      round,
+      total: Math.max(round, Number(body.building?.total) || 12),
+      hires: Number(body.building?.hires) || 0,
+      rejects: Number(body.building?.rejects) || 0,
+      obsessed: Number(body.building?.obsessed) || 0,
+      callbacks: Number(body.building?.callbacks) || 0,
+      cleanPasses: Number(body.building?.cleanPasses) || 0,
+      flagged: Number(body.building?.flagged) || 0,
+      midpoint: Boolean(body.building?.midpoint),
+      badgeRequested: Boolean(body.building?.badgeRequested),
+      hasNote: Boolean(body.building?.hasNote),
+      throughlineEcho: String(body.building?.throughlineEcho || ""),
+      nightTitle: String(body.building?.nightTitle || ""),
+      premiseTitle: String(body.building?.premiseTitle || ""),
     };
     const system = buildSystemPrompt(
       interviewer.systemPrompt,
       meta,
       [
         buildCoverGuide(interviewer, appliedJob),
+        buildBuildingGuide(sample, directive, appliedJob),
+        buildStanceGuide(stance, appliedJob),
         buildPhotoSystemGuide(interviewer, photoAllowed),
-        buildVerdictGuide(turnCount, appliedJob),
+        buildVerdictGuide(turnCount, appliedJob, {
+          minTurn: window.minVerdict,
+          forceTurn: window.forceVerdict,
+          allowCallback: !callbackRound && round < 12,
+          preferPersonal: softenHeavy || therapyScore >= 4,
+          preferClean: workHeavy && therapyScore < 3,
+        }),
       ].join("\n\n")
     );
 
@@ -163,12 +220,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const closed =
+      verdictParsed.verdict &&
+      verdictParsed.verdict.decision !== "callback";
+
     return NextResponse.json({
       reply,
       meta: {
         ...meta,
         lastImageTurn: nextLastImageTurn,
-        verdict: verdictParsed.verdict || undefined,
+        callbackRound:
+          callbackRound || verdictParsed.verdict?.decision === "callback",
+        verdict: closed ? verdictParsed.verdict : undefined,
       },
       image,
       verdict: verdictParsed.verdict,

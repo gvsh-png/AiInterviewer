@@ -34,11 +34,17 @@ import {
   signHour,
   subscribeToFile,
   unlockedMemos,
+  unlockedSampleMemos,
 } from "@/lib/fileCabinet";
 import { getInterviewer } from "@/lib/interviewers";
 import { coverJobLine, coverRoleLine } from "@/lib/cover";
 import { downloadVerdictPdf } from "@/lib/offerPdf";
 import { verdictLabel } from "@/lib/verdict";
+import {
+  getDirective,
+  sampleTemperature,
+  temperatureLabel,
+} from "@/lib/gameplay";
 
 export default function FileScreen() {
   const campaignRaw = useSyncExternalStore(
@@ -74,14 +80,41 @@ export default function FileScreen() {
   const done = completedContacts(contacts);
   const current = activeContact(contacts);
   const hires = done.filter((item) => item.verdict?.decision === "hire").length;
+  const rejects = done.filter((item) => item.verdict?.decision === "reject").length;
+  const obsessed = done.filter(
+    (item) => item.verdict?.decision === "obsessed"
+  ).length;
+  const cleanPasses = done.filter((item) => item.hourScore?.passed).length;
+  const flagged = done.filter(
+    (item) => item.hourScore && !item.hourScore.passed
+  ).length;
+  const probePasses = done.filter(
+    (item) => item.hourScore?.passed && item.hourScore.kind === "probe"
+  ).length;
   const letters = done.filter((item) => item.verdict);
   const run = campaignRun(campaign);
+  const temp = sampleTemperature({
+    hires,
+    rejects,
+    obsessed,
+    cleanPasses,
+    flagged,
+    midpoint: campaign.midpointSeen,
+  });
   const memos = [
     ...(run ? [tonightMemo(run)] : []),
     ...unlockedMemos(done.length),
+    ...unlockedSampleMemos({
+      cleanPasses,
+      obsessed,
+      probePasses,
+      hires,
+      rejects,
+    }),
   ];
   const ended = campaignEnded(contacts) || campaign.chapter === "ending";
-  const canRequestBadge = hires >= 3 && !file.badgeRequested;
+  const canRequestBadge =
+    (hires >= 3 || cleanPasses >= 3) && !file.badgeRequested;
   const hours = Array.from({ length: totalRounds() }, (_, index) => {
     const contact = hourContact(contacts, index);
     return { index, contact };
@@ -119,10 +152,19 @@ export default function FileScreen() {
 
         <div className="settings-content">
           <section className="settings-group">
+            <h2>Tonight&apos;s sample</h2>
+            <p className="file-status">{temperatureLabel(temp)}</p>
+            <p className="settings-description">
+              {cleanPasses} clean · {flagged} flagged · {hires} hired · {obsessed}{" "}
+              personal. Later hours are shorter. The brief is on the hour.
+            </p>
+          </section>
+
+          <section className="settings-group">
             <h2>Building hours</h2>
             <p className="settings-description">
-              Twelve slots. The building fills them. Tap a finished hour to
-              reopen the chat. Sign the ones you sat through.
+              Twelve slots. Each hour has a brief. Tap a finished hour to reopen
+              the chat. Sign the ones you sat through.
             </p>
             <div className="hour-grid">
               {hours.map(({ index, contact }) => {
@@ -135,15 +177,33 @@ export default function FileScreen() {
                 const isCurrent = Boolean(
                   current && contact?.interviewerId === current.interviewerId
                 );
+                const brief = getDirective(contact?.directiveId);
                 const href = contact
                   ? `/interview/${contact.interviewerId}`
                   : "/story";
+                const stamp = contact?.verdict
+                  ? contact.hourScore
+                    ? `${verdictLabel(contact.verdict.decision)} · ${
+                        contact.hourScore.passed ? "held" : "flagged"
+                      }`
+                    : verdictLabel(contact.verdict.decision)
+                  : contact?.callbackPending
+                    ? "Second pass"
+                    : isCurrent
+                      ? brief?.title || "Waiting"
+                      : "Locked";
                 return (
                   <div
                     key={index}
                     className={`hour-cell ${contact ? "filled" : ""} ${
                       isCurrent ? "current" : ""
-                    } ${signed ? "signed" : ""}`}
+                    } ${signed ? "signed" : ""} ${
+                      contact?.hourScore?.passed
+                        ? "passed"
+                        : contact?.hourScore && !contact.hourScore.passed
+                          ? "flagged"
+                          : ""
+                    }`}
                   >
                     <Link href={href}>
                       <small>Hour {index + 1}</small>
@@ -154,13 +214,7 @@ export default function FileScreen() {
                             ? "Assigned"
                             : "Empty"}
                       </strong>
-                      <span>
-                        {contact?.verdict
-                          ? verdictLabel(contact.verdict.decision)
-                          : isCurrent
-                            ? "Waiting"
-                            : "Locked"}
-                      </span>
+                      <span>{stamp}</span>
                     </Link>
                     {contact?.verdict && !signed ? (
                       <button
@@ -180,10 +234,11 @@ export default function FileScreen() {
           <section className="settings-group">
             <h2>Badge</h2>
             <p className="settings-description">
-              Three hires is enough to ask. Asking is not the same as receiving.
+              Three clean hours, or three hires, is enough to ask. Asking is not
+              the same as receiving. A pending badge changes later hours.
             </p>
             {file.badgeRequested ? (
-              <p className="file-status">Pending. Do not celebrate.</p>
+              <p className="file-status">Pending. They already treat you as inside.</p>
             ) : (
               <button
                 type="button"
@@ -191,7 +246,7 @@ export default function FileScreen() {
                 onClick={requestBadge}
                 disabled={!canRequestBadge}
               >
-                {canRequestBadge ? "Request a badge" : "Need three hires"}
+                {canRequestBadge ? "Request a badge" : "Need three clean hours or hires"}
               </button>
             )}
           </section>

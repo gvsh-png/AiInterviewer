@@ -67,33 +67,66 @@ export function verdictLabel(decision: VerdictDecision) {
   }
 }
 
-export function shouldRequestVerdict(turnCount: number) {
-  return turnCount >= MIN_VERDICT_TURN;
+export function shouldRequestVerdict(
+  turnCount: number,
+  minTurn = MIN_VERDICT_TURN
+) {
+  return turnCount >= minTurn;
 }
 
-export function mustIssueVerdict(turnCount: number) {
-  return turnCount >= FORCE_VERDICT_TURN;
+export function mustIssueVerdict(
+  turnCount: number,
+  forceTurn = FORCE_VERDICT_TURN
+) {
+  return turnCount >= forceTurn;
 }
 
-export function buildVerdictGuide(turnCount: number, appliedJob: string) {
-  if (!shouldRequestVerdict(turnCount)) {
+export function buildVerdictGuide(
+  turnCount: number,
+  appliedJob: string,
+  options?: {
+    minTurn?: number;
+    forceTurn?: number;
+    allowCallback?: boolean;
+    preferPersonal?: boolean;
+    preferClean?: boolean;
+  }
+) {
+  const minTurn = options?.minTurn ?? MIN_VERDICT_TURN;
+  const forceTurn = options?.forceTurn ?? FORCE_VERDICT_TURN;
+  if (!shouldRequestVerdict(turnCount, minTurn)) {
     return `VERDICT RULE: Do not include [[VERDICT:...]] or [[LETTER:...]] tags. Keep interviewing for ${appliedJob}.`;
   }
 
-  const force = mustIssueVerdict(turnCount)
+  const force = mustIssueVerdict(turnCount, forceTurn)
     ? `You MUST end the interview this turn.`
     : `If you have enough signal, you MAY end the interview this turn. Otherwise ask one last sharp question.`;
+  const allowed = options?.allowCallback === false
+    ? "hire|reject|obsessed"
+    : "hire|reject|callback|obsessed";
+  const lean = options?.preferPersonal
+    ? "Lean toward obsessed if they kept meeting you as a person. A clean hire should feel undeserved."
+    : options?.preferClean
+      ? "Lean toward hire or reject. Do not write a personal letter unless they clearly invited it."
+      : "Pick the stamp the hour actually earned.";
+  const callbackRule =
+    options?.allowCallback === false
+      ? "Do not use callback. The second pass already happened. Stamp hire, reject, or obsessed."
+      : "Use callback only if you genuinely need one more pass before a real letter. Callback does not close the hour.";
 
   return `VERDICT RULE: ${force}
 If you end the interview, the spoken reply stays in character (1–3 sentences) and does NOT mention tags, PDFs, or your private secret.
 Then append exactly these two tags:
 
-[[VERDICT: hire|reject|callback|obsessed]]
+[[VERDICT: ${allowed}]]
 [[LETTER: a formal 120–180 word letter on company letterhead voice, written as if HR/legal sent it. It is about the ${appliedJob} role. Do not mention your private trauma, fetish, crime, or twist. Sound official.]]
 
 Use:
 - hire = they get the job
 - reject = they do not
-- callback = another round
-- obsessed = you want them personally, not as a clean professional hire (letter still reads like an inappropriate personal note on company paper)`;
+- callback = another round (only if still allowed)
+- obsessed = you want them personally, not as a clean professional hire (letter still reads like an inappropriate personal note on company paper)
+
+${callbackRule}
+${lean}`;
 }

@@ -50,6 +50,11 @@ import {
 } from "@/lib/cutscenes";
 import { rollStoryRun } from "@/lib/storySeed";
 import { coverJobLine, coverRoleLine } from "@/lib/cover";
+import {
+  getDirective,
+  sampleTemperature,
+  temperatureLabel,
+} from "@/lib/gameplay";
 
 type Props = {
   /** Full-bleed player on /story. Inbox only teases the pending scene. */
@@ -237,7 +242,7 @@ export default function StoryDesk({ playHere = false }: Props) {
     );
 
     if (kind === "prologue") {
-      assignNextStoryContact();
+      assignNextStoryContact({ seed: run.seed });
       updateCampaign({ chapter: "arrive", cutsceneDone: false });
       return;
     }
@@ -254,7 +259,7 @@ export default function StoryDesk({ playHere = false }: Props) {
         return;
       }
       if (remaining > 0) {
-        assignNextStoryContact();
+        assignNextStoryContact({ seed: run.seed });
         updateCampaign({ chapter: "arrive", cutsceneDone: false });
         return;
       }
@@ -263,7 +268,7 @@ export default function StoryDesk({ playHere = false }: Props) {
     }
 
     if (kind === "midpoint") {
-      assignNextStoryContact();
+      assignNextStoryContact({ seed: run.seed });
       updateCampaign({
         chapter: "arrive",
         cutsceneDone: false,
@@ -280,6 +285,7 @@ export default function StoryDesk({ playHere = false }: Props) {
     round,
     router,
     filedShots,
+    run.seed,
   ]);
 
   if (replay) {
@@ -320,6 +326,32 @@ export default function StoryDesk({ playHere = false }: Props) {
         ) : (
           <p className="story-beat">The night has not started.</p>
         )}
+        <p className="story-beat">
+          {temperatureLabel(
+            sampleTemperature({
+              hires: done.filter((item) => item.verdict?.decision === "hire")
+                .length,
+              rejects: done.filter((item) => item.verdict?.decision === "reject")
+                .length,
+              obsessed: done.filter(
+                (item) => item.verdict?.decision === "obsessed"
+              ).length,
+              cleanPasses: done.filter((item) => item.hourScore?.passed).length,
+              flagged: done.filter(
+                (item) => item.hourScore && !item.hourScore.passed
+              ).length,
+              midpoint: campaign.midpointSeen,
+            })
+          )}
+          {current
+            ? `. ${
+                getDirective(current.directiveId)?.title ||
+                (current.callbackPending
+                  ? "Second pass still open"
+                  : coverJobLine(current.appliedJob))
+              }`
+            : ""}
+        </p>
 
         {!campaign.cutsceneDone ? (
           <button
@@ -375,6 +407,11 @@ export default function StoryDesk({ playHere = false }: Props) {
                     <span>
                       {coverRoleLine(npc)} · {coverJobLine(item.appliedJob)} ·{" "}
                       {item.verdict.decision}
+                      {item.hourScore
+                        ? item.hourScore.passed
+                          ? " · brief held"
+                          : " · brief flagged"
+                        : ""}
                     </span>
                   </div>
                 </li>

@@ -9,12 +9,14 @@ import { coverOpeningLine } from "../src/lib/cover.ts";
 import { extractVerdict } from "../src/lib/verdict.ts";
 import {
   BUILDING_MEMOS,
+  SAMPLE_MEMOS,
   unlockedMemos,
 } from "../src/lib/fileCabinet.ts";
 import {
   aftermathLine,
   currentRoundLabel,
   epilogue,
+  hourClosed,
   totalRounds,
 } from "../src/lib/campaign.ts";
 import {
@@ -32,6 +34,15 @@ import {
   stillVideo,
   validateShots,
 } from "../src/lib/cutscenes.ts";
+import {
+  HOUR_DIRECTIVES,
+  STANCES,
+  detectProbeScoreDelta,
+  getDirective,
+  hourWindow,
+  pickDirective,
+  scoreHour,
+} from "../src/lib/gameplay.ts";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -217,6 +228,82 @@ assert.ok(unlockedMemos(12).length >= BUILDING_MEMOS.length);
 assert.equal(
   BUILDING_MEMOS.some((memo) => /twist|stalker|cult/i.test(`${memo.title} ${memo.body}`)),
   false
+);
+assert.equal(
+  SAMPLE_MEMOS.some((memo) => /twist|stalker|cult/i.test(`${memo.title} ${memo.body}`)),
+  false
+);
+
+assert.equal(HOUR_DIRECTIVES.length, 12);
+assert.equal(STANCES.length, 3);
+assert.equal(hourWindow(1).forceVerdict, 8);
+assert.equal(hourWindow(12).forceVerdict, 5);
+assert.ok(hourWindow(8, true).forceVerdict > hourWindow(8).forceVerdict);
+assert.equal(pickDirective(1, "seed-a").id, pickDirective(1, "seed-a").id);
+assert.equal(pickDirective(1, "seed-a").act, 1);
+assert.equal(pickDirective(8, "seed-a").act, 3);
+const playText = [
+  ...HOUR_DIRECTIVES.map((item) => `${item.title} ${item.body}`),
+  ...STANCES.map((item) => `${item.label} ${item.hint}`),
+].join(" ");
+assert.equal(/twist|stalker|cult/i.test(playText), false);
+assert.equal(/what role do you want|pick a cover|choose a job/i.test(playText), false);
+
+const distance = getDirective("intake-distance");
+assert.ok(distance);
+assert.equal(
+  scoreHour({
+    directive: distance,
+    stances: ["work", "work"],
+    userTexts: ["I shipped the build this morning."],
+    therapyScore: 0,
+    verdict: "hire",
+  }).passed,
+  true
+);
+assert.equal(
+  scoreHour({
+    directive: distance,
+    stances: ["soften", "soften"],
+    userTexts: ["That must be hard for you."],
+    therapyScore: 4,
+    verdict: "obsessed",
+  }).passed,
+  false
+);
+const probe = getDirective("extract-risk");
+assert.ok(probe);
+assert.equal(
+  scoreHour({
+    directive: probe,
+    stances: ["probe"],
+    userTexts: ["What happens if the board is watching?"],
+    therapyScore: 0,
+    verdict: "reject",
+  }).passed,
+  true
+);
+assert.ok(detectProbeScoreDelta("what happens if the board is watching") >= 1);
+
+assert.equal(
+  hourClosed({
+    interviewerId: "derek",
+    appliedJob: "Game Testing",
+    createdAt: 1,
+    updatedAt: 1,
+    callbackPending: true,
+  }),
+  false
+);
+assert.equal(
+  hourClosed({
+    interviewerId: "derek",
+    appliedJob: "Game Testing",
+    createdAt: 1,
+    updatedAt: 1,
+    verdict: { decision: "hire", letter: "Yes." },
+  }),
+  true
 );
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

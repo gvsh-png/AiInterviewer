@@ -273,12 +273,18 @@ export function totalRounds() {
   return INTERVIEWERS.length;
 }
 
+export function hourClosed(item: AssignedContact) {
+  if (item.callbackPending) return false;
+  if (!item.verdict) return false;
+  return item.verdict.decision !== "callback";
+}
+
 export function completedContacts(contacts: AssignedContact[]) {
-  return contacts.filter((item) => item.verdict);
+  return contacts.filter(hourClosed);
 }
 
 export function activeContact(contacts: AssignedContact[]) {
-  return contacts.find((item) => !item.verdict) ?? null;
+  return contacts.find((item) => !hourClosed(item)) ?? null;
 }
 
 export function campaignEnded(contacts: AssignedContact[]) {
@@ -344,10 +350,19 @@ export function endingTitle(contacts: AssignedContact[]) {
 }
 
 export function epilogue(contacts: AssignedContact[]) {
+  const key = endingKey(contacts);
+  const body =
+    key === "kept"
+      ? "Too many letters were personal. PROBE does not send you home."
+      : key === "staff"
+        ? "They stamped you adjacent to staff. That is not the same as a badge that works the lobby."
+        : key === "sample"
+          ? "Nobody hired you. The sample still closed. The printers have the last page."
+          : "The file does not agree with itself. PROBE will keep the copies.";
   return {
     kicker: "Ending",
     title: endingTitle(contacts),
-    body: aftermathLine("callback"),
+    body,
   };
 }
 

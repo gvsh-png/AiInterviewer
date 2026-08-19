@@ -1131,6 +1131,72 @@ svg {
   font-size: 0.72rem;
 }
 
+.hour-brief {
+  width: min(100%, 34rem);
+  margin: 0 auto 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--sulfur) 8%, var(--panel));
+}
+
+.hour-brief strong {
+  display: block;
+  margin: 0.15rem 0 0.2rem;
+  font-size: 0.92rem;
+}
+
+.hour-brief span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.stance-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.stance-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.stance-chip.active {
+  border-color: var(--sulfur);
+  background: var(--sulfur);
+  color: var(--ink);
+}
+
+.stance-chip:disabled {
+  opacity: 0.45;
+}
+
+.stance-hint {
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.callback-card {
+  border-color: color-mix(in srgb, var(--sulfur) 55%, var(--border));
+}
+
+.callback-note {
+  margin-top: 0.65rem !important;
+  color: var(--sulfur) !important;
+  font-weight: 700;
+  white-space: normal !important;
+}
+
 .chat-loading {
   display: flex;
   align-items: center;
@@ -1570,6 +1636,14 @@ a.text-button {
 
 .hour-cell.signed {
   background: color-mix(in srgb, var(--sulfur) 12%, var(--surface));
+}
+
+.hour-cell.passed {
+  border-color: color-mix(in srgb, var(--sulfur) 50%, var(--border));
+}
+
+.hour-cell.flagged {
+  border-color: color-mix(in srgb, var(--danger-ui) 45%, var(--border));
 }
 
 .hour-cell .text-button {

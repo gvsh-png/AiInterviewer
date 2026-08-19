@@ -1,6 +1,7 @@
 import type { InterviewerId } from "@/lib/interviewers";
 import { INTERVIEWERS } from "@/lib/interviewers";
 import type { InterviewVerdict } from "@/lib/verdict";
+import { pickDirective, type HourScore } from "@/lib/gameplay";
 
 const STORAGE_VERSION = 1;
 const KEY = `probe:contacts:v${STORAGE_VERSION}`;
@@ -13,6 +14,9 @@ export type AssignedContact = {
   preview?: string;
   updatedAt: number;
   verdict?: InterviewVerdict;
+  directiveId?: string;
+  hourScore?: HourScore;
+  callbackPending?: boolean;
 };
 
 function isBrowser() {
@@ -75,19 +79,31 @@ export function unusedInterviewers() {
   return INTERVIEWERS.filter((person) => !used.has(person.id));
 }
 
-export function assignNextStoryContact(): AssignedContact | null {
+export function assignNextStoryContact(options?: {
+  seed?: string;
+}): AssignedContact | null {
   if (!isBrowser()) return null;
   const pool = unusedInterviewers();
   if (!pool.length) return null;
+  const existing = readContacts();
   const pick = pool[Math.floor(Math.random() * pool.length)]!;
+  const used = existing
+    .map((item) => item.directiveId)
+    .filter((id): id is string => Boolean(id));
+  const directive = pickDirective(
+    existing.length + 1,
+    options?.seed || "probe",
+    used
+  );
   const contact: AssignedContact = {
     interviewerId: pick.id,
     appliedJob: pick.job,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     preview: "New interview",
+    directiveId: directive.id,
   };
-  writeContacts([contact, ...readContacts()]);
+  writeContacts([contact, ...existing]);
   return contact;
 }
 

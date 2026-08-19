@@ -40,28 +40,28 @@ export const BUILDING_MEMOS: BuildingMemo[] = [
     after: 0,
     kicker: "Memo",
     title: "Intake is not optional",
-    body: "You are expected on the floor when a contact messages. The desk does not take department requests. Leave notes only in this file.",
+    body: "You are expected on the floor when a contact messages. Each hour has a brief in this file. Leave notes only here.",
   },
   {
     id: "forward",
     after: 1,
     kicker: "Memo",
     title: "Hours are forwarded",
-    body: "Completed interviews are copied upstairs. Do not ask who reads them. Sign the hour in this file if you sat through it.",
+    body: "Completed interviews are copied upstairs. The brief is scored when the letter lands. Sign the hour if you sat through it.",
   },
   {
     id: "watch",
     after: 3,
     kicker: "Memo",
     title: "The board is copied live",
-    body: "Three hours is enough for a pattern. Keep answers short. Personal letters still go in the drawer.",
+    body: "Three hours is enough for a pattern. Keep answers short. Soft hours still go in the drawer.",
   },
   {
     id: "halfway",
     after: 6,
     kicker: "Memo",
     title: "Halfway is a measurement",
-    body: "People who leave early do not get copies. Badge requests before six hires are stamped pending. That is not a no. It is also not a yes.",
+    body: "People who leave early do not get copies. Later hours are shorter. Badge requests before three clean hours or three hires are stamped pending.",
   },
   {
     id: "keep",
@@ -76,6 +76,37 @@ export const BUILDING_MEMOS: BuildingMemo[] = [
     kicker: "Memo",
     title: "Sample complete",
     body: "The printers have what they need. Read the ending in Story. The file stays if they want another hour.",
+  },
+];
+
+export const SAMPLE_MEMOS: Array<BuildingMemo & { id: string }> = [
+  {
+    id: "sample-clean",
+    after: 0,
+    kicker: "Stamp",
+    title: "The sample is behaving",
+    body: "Four clean hours. Upstairs noticed. Do not get comfortable. Clean is a measurement, not a kindness.",
+  },
+  {
+    id: "sample-attached",
+    after: 0,
+    kicker: "Stamp",
+    title: "Personal stationery",
+    body: "Two personal letters is a pattern. Do not answer them after the hour closes. The board kept both copies.",
+  },
+  {
+    id: "sample-probe",
+    after: 0,
+    kicker: "Stamp",
+    title: "Unwritten risks",
+    body: "You keep asking for what is not on paper. The desk will not stop you. It will also not protect you.",
+  },
+  {
+    id: "sample-cold",
+    after: 0,
+    kicker: "Stamp",
+    title: "Cold sample",
+    body: "Nobody hired you and the briefs are still landing. That is allowed. It is also being counted.",
   },
 ];
 
@@ -189,4 +220,31 @@ export function requestBadge() {
 
 export function unlockedMemos(completedCount: number) {
   return BUILDING_MEMOS.filter((memo) => completedCount >= memo.after);
+}
+
+export function unlockedSampleMemos(input: {
+  cleanPasses: number;
+  obsessed: number;
+  probePasses: number;
+  hires: number;
+  rejects: number;
+}) {
+  const next: BuildingMemo[] = [];
+  if (input.cleanPasses >= 4) {
+    const memo = SAMPLE_MEMOS.find((item) => item.id === "sample-clean");
+    if (memo) next.push(memo);
+  }
+  if (input.obsessed >= 2) {
+    const memo = SAMPLE_MEMOS.find((item) => item.id === "sample-attached");
+    if (memo) next.push(memo);
+  }
+  if (input.probePasses >= 2) {
+    const memo = SAMPLE_MEMOS.find((item) => item.id === "sample-probe");
+    if (memo) next.push(memo);
+  }
+  if (input.hires === 0 && input.rejects >= 3) {
+    const memo = SAMPLE_MEMOS.find((item) => item.id === "sample-cold");
+    if (memo) next.push(memo);
+  }
+  return next;
 }

@@ -1,3 +1,5 @@
+import type { Stance } from "@/lib/gameplay";
+
 export type InterviewPhase =
   | "strict"
   | "cracking"
@@ -10,6 +12,8 @@ export type ConversationMeta = {
   phase: InterviewPhase;
   /** Candidate turn number when the interviewer last shared a photo. */
   lastImageTurn: number;
+  stances?: Stance[];
+  callbackRound?: boolean;
   verdict?: {
     decision: "hire" | "reject" | "callback" | "obsessed";
     letter: string;
