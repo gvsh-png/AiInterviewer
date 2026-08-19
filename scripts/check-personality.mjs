@@ -11,7 +11,12 @@ import {
 } from "../src/lib/contacts.ts";
 import { PERSON_PATCHES } from "../src/lib/nightScore.ts";
 import { coverOpeningLine } from "../src/lib/cover.ts";
-import { extractVerdict, forceCloseInterview } from "../src/lib/verdict.ts";
+import {
+  extractVerdict,
+  forceCloseInterview,
+  MIN_VERDICT_TURN,
+  FORCE_VERDICT_TURN,
+} from "../src/lib/verdict.ts";
 import {
   BUILDING_MEMOS,
   SAMPLE_MEMOS,
@@ -47,8 +52,11 @@ import {
   getDirective,
   hourWindow,
   pickDirective,
+  QUESTIONS_PER_HOUR,
   scoreHour,
 } from "../src/lib/gameplay.ts";
+import { matchShockCut, SHOCK_CUTS } from "../src/lib/shockCuts.ts";
+import { interviewStress } from "../src/lib/stress.ts";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -88,7 +96,7 @@ assert.equal(parsed.reply.includes("VERDICT"), false);
 assert.equal(PREMISES.length, 6);
 assert.equal(NIGHTS.length, 6);
 assert.equal(THROUGHLINES.length, 6);
-assert.equal(totalRounds(), INTERVIEWERS.length);
+assert.equal(totalRounds(), 5);
 
 const run = rollStoryRun("test");
 const person = {
@@ -104,8 +112,8 @@ for (const kind of kinds) {
   const shots = assembleShots({
     run,
     kind,
-    round: kind === "aftermath" ? 6 : 1,
-    total: 12,
+    round: kind === "aftermath" ? 3 : 1,
+    total: 5,
     person,
     lastVerdict: "hire",
     lastName: first.name,
@@ -231,7 +239,7 @@ assert.match(epilogue(coldFile).title, /Sample closed/);
 
 assert.ok(BUILDING_MEMOS.length >= 6);
 assert.equal(unlockedMemos(0).length, 1);
-assert.ok(unlockedMemos(12).length >= BUILDING_MEMOS.length);
+assert.ok(unlockedMemos(5).length >= BUILDING_MEMOS.length);
 assert.equal(
   BUILDING_MEMOS.some((memo) => /twist|stalker|cult/i.test(`${memo.title} ${memo.body}`)),
   false
@@ -243,13 +251,17 @@ assert.equal(
 
 assert.equal(HOUR_DIRECTIVES.length, 12);
 assert.equal(STANCES.length, 3);
-assert.equal(hourWindow(1).forceVerdict, 8);
-assert.equal(hourWindow(12).forceVerdict, 4);
-assert.equal(hourWindow(12, true).forceVerdict, 4);
-assert.ok(hourWindow(8, true).forceVerdict > hourWindow(8).forceVerdict);
+assert.equal(QUESTIONS_PER_HOUR, 5);
+assert.equal(MIN_VERDICT_TURN, 5);
+assert.equal(FORCE_VERDICT_TURN, 5);
+assert.equal(hourWindow(1).forceVerdict, 5);
+assert.equal(hourWindow(5).forceVerdict, 5);
+assert.equal(hourWindow(5, true).forceVerdict, 5);
+assert.ok(hourWindow(3, true).forceVerdict > hourWindow(3).forceVerdict);
 assert.equal(pickDirective(1, "seed-a").id, pickDirective(1, "seed-a").id);
 assert.equal(pickDirective(1, "seed-a").act, 1);
-assert.equal(pickDirective(8, "seed-a").act, 3);
+assert.equal(pickDirective(4, "seed-a").act, 3);
+assert.equal(pickDirective(5, "seed-a").act, 4);
 const playText = [
   ...HOUR_DIRECTIVES.map((item) => `${item.title} ${item.body}`),
   ...STANCES.map((item) => `${item.label} ${item.hint}`),
@@ -351,5 +363,48 @@ const uniquePlate = stillPrompt({
 });
 assert.match(uniquePlate, /plate-77/);
 assert.match(uniquePlate, /different angle/i);
+
+assert.ok(SHOCK_CUTS.length >= 6);
+assert.equal(
+  SHOCK_CUTS.some((cut) =>
+    /twist|stalker|cult/i.test(
+      `${cut.title} ${cut.shots.map((shot) => shot.line).join(" ")}`
+    )
+  ),
+  false
+);
+assert.equal(matchShockCut("that must be hard for your family", [])?.id, "family");
+assert.equal(matchShockCut("who is watching the board", [])?.id, "watch");
+assert.equal(matchShockCut("I shipped three tickets", []), null);
+assert.equal(matchShockCut("that must be hard for your family", ["family"])?.id, "soften");
+
+const calm = interviewStress({
+  round: 1,
+  total: 5,
+  turnCount: 0,
+  forceVerdict: 5,
+  therapyScore: 0,
+  soften: 0,
+  probe: 0,
+  shocks: 0,
+  callback: false,
+});
+assert.equal(calm.alert, false);
+assert.ok(calm.bpm >= 58);
+const hot = interviewStress({
+  round: 5,
+  total: 5,
+  turnCount: 5,
+  forceVerdict: 5,
+  therapyScore: 4,
+  soften: 2,
+  probe: 2,
+  shocks: 1,
+  callback: true,
+});
+assert.equal(hot.alert, true);
+assert.equal(hot.label, "RED ALERT");
+assert.ok(hot.bpm > calm.bpm);
+assert.ok(Object.values(PERSON_PATCHES).every((patch) => patch.volume >= 0.08));
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

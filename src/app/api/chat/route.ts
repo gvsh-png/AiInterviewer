@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       body.meta?.callbackRound || body.building?.callbackRound
     );
     const round = Math.max(1, Number(body.building?.round) || 1);
-    const total = Math.max(round, Number(body.building?.total) || 12);
+    const total = Math.max(round, Number(body.building?.total) || 5);
     const lastHour = round >= total;
     const window = hourWindow(round, callbackRound, total);
     const therapyDelta = lastUser
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     const therapyScore = prevTherapy + therapyDelta + softenBonus;
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
-    const photoEvery = round >= 7 ? 6 : 10;
+    const photoEvery = round >= 3 ? 3 : 4;
     const photoAllowed =
       !lastHour && canSharePhoto(turnCount, lastImageTurn, photoEvery);
     const wantsVerdict =

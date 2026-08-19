@@ -18,6 +18,7 @@ export type ConversationMeta = {
     decision: "hire" | "reject" | "callback" | "obsessed";
     letter: string;
   };
+  shockIds?: string[];
 };
 
 export type ChatMessage = {
@@ -73,9 +74,9 @@ export function derivePhase(
   turnCount: number,
   therapyScore: number
 ): InterviewPhase {
-  if (therapyScore >= 6) return "enamored";
-  if (turnCount >= 6) return "confessional";
-  if (turnCount >= 3) return "cracking";
+  if (therapyScore >= 4) return "enamored";
+  if (turnCount >= 4) return "confessional";
+  if (turnCount >= 2) return "cracking";
   return "strict";
 }
 

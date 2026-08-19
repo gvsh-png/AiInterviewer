@@ -12,8 +12,8 @@ export type InterviewVerdict = {
   letter: string;
 };
 
-export const MIN_VERDICT_TURN = 6;
-export const FORCE_VERDICT_TURN = 8;
+export const MIN_VERDICT_TURN = 5;
+export const FORCE_VERDICT_TURN = 5;
 
 const VERDICT_RE = /\[\[VERDICT:\s*(hire|reject|callback|obsessed)\s*\]\]/i;
 const LETTER_RE = /\[\[LETTER:\s*([\s\S]*?)\]\]/i;
