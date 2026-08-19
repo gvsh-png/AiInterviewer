@@ -146,3 +146,20 @@ export function verdictPdfFilename(company: string, job: string) {
     .replace(/^-|-$/g, "");
   return `${slug || "decision"}-letter.pdf`;
 }
+
+export function downloadVerdictPdf(options: {
+  interviewer: Interviewer;
+  appliedJob: string;
+  verdict: InterviewVerdict;
+}) {
+  const blob = buildVerdictPdf(options);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = verdictPdfFilename(
+    options.interviewer.company,
+    options.appliedJob
+  );
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

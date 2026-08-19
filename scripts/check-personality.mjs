@@ -8,6 +8,10 @@ import { INTERVIEWERS, getInterviewer } from "../src/lib/interviewers.ts";
 import { coverOpeningLine } from "../src/lib/cover.ts";
 import { extractVerdict } from "../src/lib/verdict.ts";
 import {
+  BUILDING_MEMOS,
+  unlockedMemos,
+} from "../src/lib/fileCabinet.ts";
+import {
   AFTERMATH_PAGES,
   ENDING_PAGES,
   INTRO_PAGES,
@@ -100,5 +104,13 @@ const storyText = [
   .join("\n");
 assert.equal(/twist|stalker|cult/i.test(storyText), false);
 assert.equal(/what role do you want|pick a cover|choose a job/i.test(storyText), false);
+
+assert.ok(BUILDING_MEMOS.length >= 6);
+assert.equal(unlockedMemos(0).length, 1);
+assert.ok(unlockedMemos(12).length >= BUILDING_MEMOS.length);
+assert.equal(
+  BUILDING_MEMOS.some((memo) => /twist|stalker|cult/i.test(`${memo.title} ${memo.body}`)),
+  false
+);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

@@ -18,12 +18,13 @@ import {
   loadConversation,
   saveConversation,
 } from "@/lib/chatStorage";
-import { buildVerdictPdf, verdictPdfFilename } from "@/lib/offerPdf";
+import { downloadVerdictPdf } from "@/lib/offerPdf";
 import { verdictHeadline, verdictLabel, type InterviewVerdict } from "@/lib/verdict";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/useSpeech";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
 import ContactsSidebar from "@/components/ContactsSidebar";
+import NightNote from "@/components/NightNote";
 
 type Line = {
   id: string;
@@ -72,6 +73,7 @@ export default function InterviewRoom({
   const [error, setError] = useState<string | null>(null);
   const [speechReveal, setSpeechReveal] = useState<SpeechReveal | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
@@ -363,17 +365,11 @@ export default function InterviewRoom({
   const activeVerdict = meta.verdict || storedVerdict;
   const downloadLetter = () => {
     if (!activeVerdict) return;
-    const blob = buildVerdictPdf({
+    downloadVerdictPdf({
       interviewer,
       appliedJob,
       verdict: activeVerdict,
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = verdictPdfFilename(interviewer.company, appliedJob);
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const isLineRevealing = (lineId: string) =>
@@ -436,6 +432,18 @@ export default function InterviewRoom({
             <p>{status}</p>
           </div>
           <div className="thread-actions">
+            <button
+              type="button"
+              className={`icon-button ${notesOpen ? "active" : ""}`}
+              onClick={() => setNotesOpen((open) => !open)}
+              aria-label={notesOpen ? "Close night note" : "Night note"}
+              aria-pressed={notesOpen}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <path d="M6 4h9l5 5v11H6Z" />
+                <path d="M15 4v5h5M8 13h8M8 17h6" />
+              </svg>
+            </button>
             {started ? (
               <button
                 type="button"
@@ -475,6 +483,9 @@ export default function InterviewRoom({
               <>
                 <Link href="/story" className="start-chat-button">
                   Continue the story
+                </Link>
+                <Link href="/file" className="text-button">
+                  Open file
                 </Link>
                 <button type="button" className="text-button" onClick={downloadLetter}>
                   Download letter
@@ -579,11 +590,20 @@ export default function InterviewRoom({
             </div>
 
             <div className="composer">
+              {notesOpen ? (
+                <div className="note-sheet">
+                  <p className="app-kicker">Night note</p>
+                  <NightNote interviewerId={interviewer.id} compact />
+                </div>
+              ) : null}
               {error ? <p className="composer-error">{error}</p> : null}
               {activeVerdict ? (
                 <div className="composer-row story-continue">
                   <Link href="/story" className="start-chat-button">
                     Continue the story
+                  </Link>
+                  <Link href="/file" className="text-button">
+                    Open file
                   </Link>
                   <button type="button" className="text-button" onClick={downloadLetter}>
                     Download PDF

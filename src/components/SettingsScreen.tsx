@@ -7,6 +7,7 @@ import MessengerNav from "@/components/MessengerNav";
 import { clearAllConversations } from "@/lib/chatStorage";
 import { clearAllContacts } from "@/lib/contacts";
 import { clearCampaign } from "@/lib/campaign";
+import { clearFileCabinet } from "@/lib/fileCabinet";
 import {
   getThemePreference,
   setThemePreference,
@@ -56,6 +57,7 @@ export default function SettingsScreen() {
     clearAllConversations();
     clearAllContacts();
     clearCampaign();
+    clearFileCabinet();
     setResetDone(true);
   };
 
@@ -106,8 +108,8 @@ export default function SettingsScreen() {
           <section className="settings-group danger-zone">
             <h2>Conversation data</h2>
             <p className="settings-description">
-              Your chats, contacts, and story progress are stored only in this
-              browser using local storage.
+              Your chats, contacts, story, and file notes are stored only in
+              this browser using local storage.
             </p>
             <button
               type="button"

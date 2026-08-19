@@ -75,12 +75,20 @@ export default function ContactsSidebar({
           <p className="app-kicker">PROBE</p>
           <h1>Chats</h1>
         </div>
-        <Link href="/settings" className="icon-button" aria-label="Settings">
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4L10.4 6a8 8 0 0 0-1.7 1L6.5 6l-2 3.4L6.6 11a7 7 0 0 0 0 2l-2.1 1.5 2 3.4 2.3-1A8 8 0 0 0 10.4 18l.3 2.5h4L15 18a8 8 0 0 0 1.7-1l2.3 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z" />
-          </svg>
-        </Link>
+        <div className="header-actions">
+          <Link href="/file" className="icon-button" aria-label="File">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M4 7.5h16v12H4Z" />
+              <path d="M8 7.5V5.5h8v2" />
+            </svg>
+          </Link>
+          <Link href="/settings" className="icon-button" aria-label="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4L10.4 6a8 8 0 0 0-1.7 1L6.5 6l-2 3.4L6.6 11a7 7 0 0 0 0 2l-2.1 1.5 2 3.4 2.3-1A8 8 0 0 0 10.4 18l.3 2.5h4L15 18a8 8 0 0 0 1.7-1l2.3 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z" />
+            </svg>
+          </Link>
+        </div>
       </header>
 
       <Link href="/story" className="round-chip">

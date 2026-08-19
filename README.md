@@ -9,6 +9,7 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call
+- **File** tab: building hours, letters, night notes, memos, and a badge request
 - After enough turns they reach a **verdict** and generate a downloadable PDF letter
 - Password gate (`SITE_PASSWORD`)
 - Speech-to-text + TTS via OpenRouter
@@ -31,4 +32,4 @@ npm run dev
 
 ## Hidden interviewer pool
 
-Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever the story assigns. Reset in Settings clears chats, contacts, and campaign progress.
+Personalities, names, and profile photos live in `src/lib/interviewers.ts`. Players only meet whoever the story assigns. Reset in Settings clears chats, contacts, campaign progress, and file notes.

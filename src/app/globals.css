@@ -156,6 +156,11 @@ svg {
   background: var(--surface);
 }
 
+.icon-button.active {
+  background: var(--surface);
+  color: var(--sulfur);
+}
+
 .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
@@ -334,7 +339,7 @@ svg {
 
 .mobile-tabbar {
   min-height: calc(58px + env(safe-area-inset-bottom));
-  padding: 0.35rem 2.25rem env(safe-area-inset-bottom);
+  padding: 0.35rem 0.6rem env(safe-area-inset-bottom);
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -343,7 +348,7 @@ svg {
 }
 
 .tabbar-item {
-  min-width: 4.2rem;
+  min-width: 3.4rem;
   display: grid;
   justify-items: center;
   gap: 0.18rem;
@@ -927,6 +932,12 @@ a.start-chat-button {
   font-size: 0.75rem;
 }
 
+a.text-button {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
 .job-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1235,6 +1246,186 @@ a.start-chat-button {
   display: none;
 }
 
+.hour-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.hour-cell {
+  padding: 0.55rem 0.55rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.hour-cell a {
+  display: grid;
+  gap: 0.12rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hour-cell small {
+  color: var(--subtle);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hour-cell strong {
+  font-size: 0.78rem;
+}
+
+.hour-cell span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.hour-cell.current {
+  border-color: var(--sulfur);
+}
+
+.hour-cell.signed {
+  background: color-mix(in srgb, var(--sulfur) 12%, var(--surface));
+}
+
+.hour-cell .text-button {
+  margin: 0.3rem 0 0;
+  padding: 0;
+  font-size: 0.68rem;
+}
+
+.file-status {
+  margin: 0;
+  color: var(--sulfur);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.settings-group .start-chat-button {
+  margin-top: 0;
+}
+
+.letter-list,
+.memo-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.letter-card,
+.memo-card {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+
+.letter-card-head {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.letter-card-head span,
+.memo-card p,
+.letter-card p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.letter-card p,
+.memo-card p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.letter-card-head strong,
+.memo-card h3 {
+  display: block;
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.letter-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.letter-card-actions .text-button {
+  margin-top: 0;
+}
+
+.night-note textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  outline: 0;
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+}
+
+.night-note.compact textarea {
+  min-height: 5rem;
+}
+
+.night-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.night-note-actions .text-button,
+.night-note-actions .reset-confirmation {
+  margin-top: 0.35rem;
+}
+
+.note-folder {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface);
+}
+
+.note-folder summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.note-folder summary span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.note-folder .night-note {
+  margin-top: 0.7rem;
+}
+
+.note-sheet {
+  margin-bottom: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel);
+}
+
+.note-sheet .app-kicker {
+  margin-bottom: 0.45rem;
+}
+
 .login-room {
   min-height: 100dvh;
   display: grid;
@@ -1339,7 +1530,8 @@ a.start-chat-button {
 
   .thread-shell > .contacts-panel,
   .settings-shell > .contacts-panel,
-  .story-shell > .contacts-panel {
+  .story-shell > .contacts-panel,
+  .file-shell > .contacts-panel {
     display: none;
   }
 
@@ -1409,6 +1601,10 @@ a.start-chat-button {
 
   .settings-content {
     padding: 1rem 0.75rem 1.5rem;
+  }
+
+  .hour-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .settings-group {
