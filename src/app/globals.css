@@ -329,6 +329,7 @@ svg {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  text-decoration: none;
 }
 
 .mobile-tabbar {
@@ -420,226 +421,76 @@ svg {
   overflow: hidden;
 }
 
-.inbox-shell .desktop-empty-chat {
-  display: grid;
+.inbox-shell .story-pane {
+  grid-template-rows: minmax(0, 1fr);
 }
 
-.story-mode {
-  width: 100%;
-  min-height: 100dvh;
-  margin: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  background: var(--app-bg);
+.story-pane > .mobile-tabbar {
+  display: none;
 }
 
-.story-topbar {
-  width: min(880px, 100%);
-  min-height: calc(64px + env(safe-area-inset-top));
+.story-desk {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.5rem clamp(1rem, 5vw, 4rem) 3rem;
+}
+
+.story-copy {
+  width: min(38rem, 100%);
   margin: 0 auto;
-  padding: env(safe-area-inset-top) 1rem 0.65rem;
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr) 4.5rem;
-  align-items: end;
-  gap: 0.5rem;
-  background: var(--app-bg);
-  border-bottom: 2px solid var(--text);
+  gap: 0.75rem;
 }
 
-.story-top-link,
-.story-progress {
-  margin: 0 0 0.35rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 750;
-  text-decoration: none;
-}
-
-.story-progress {
-  text-align: right;
-}
-
-.story-top-title {
-  text-align: center;
-}
-
-.story-top-title h1 {
-  margin: 0.1rem 0 0;
-  font-size: 1.15rem;
+.story-copy h2 {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.15;
   letter-spacing: -0.03em;
 }
 
-.story-board {
-  width: min(760px, 100%);
-  min-height: 0;
-  margin: 0 auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 1.25rem 1rem 1.5rem;
-}
-
-.story-round-hint {
-  margin: 0 0 0.35rem;
-  color: var(--sulfur);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.story-board > .app-kicker {
-  margin-bottom: 0.2rem;
-}
-
-.story-board h2 {
-  margin: 0 0 0.9rem;
-  font-size: clamp(1.4rem, 4vw, 1.9rem);
-  line-height: 1.12;
-  letter-spacing: -0.04em;
-}
-
-.story-strip {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.story-strip-lower {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
-}
-
-.story-frame {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: minmax(7.5rem, 1fr) auto;
-  overflow: hidden;
-  border: 2px solid var(--text);
-  border-radius: 0.2rem;
-  background: var(--panel);
-}
-
-.story-frame.wide {
-  min-height: 13.5rem;
-  grid-template-rows: minmax(10rem, 1.4fr) auto;
-}
-
-.story-caption {
+.story-beat {
   margin: 0;
-  padding: 0.7rem 0.75rem;
-  border-top: 2px solid var(--text);
-  color: var(--text);
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
   background: var(--panel);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
-.story-art {
-  min-height: 7.5rem;
-  background:
-    radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--sulfur) 22%, transparent), transparent 42%),
-    linear-gradient(180deg, #16171c, #07080b);
+.story-contact {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
 }
 
-.story-frame.wide .story-art {
-  min-height: 10rem;
+.story-contact strong,
+.story-contact span {
+  display: block;
 }
 
-.art-portrait {
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--sulfur) 28%, transparent), transparent 55%),
-    linear-gradient(180deg, #1b1c22, #09090c);
+.story-contact strong {
+  font-size: 0.95rem;
 }
 
-.art-building {
-  background:
-    repeating-linear-gradient(
-      90deg,
-      #0c0d11 0 18px,
-      color-mix(in srgb, var(--sulfur) 55%, #1a1b20) 18px 20px
-    ),
-    linear-gradient(180deg, #14151a, #050506);
-  background-size: 28px 100%, auto;
-}
-
-.art-windows {
-  background:
-    repeating-linear-gradient(#0b0c10 0 10px, transparent 10px 22px),
-    repeating-linear-gradient(90deg, #0b0c10 0 10px, color-mix(in srgb, var(--sulfur) 40%, #222) 10px 22px);
-}
-
-.art-file {
-  background:
-    linear-gradient(180deg, transparent 18%, color-mix(in srgb, var(--panel) 80%, #cfc8b4) 18% 22%, transparent 22% 38%, color-mix(in srgb, var(--panel) 70%, #cfc8b4) 38% 42%, transparent 42%),
-    linear-gradient(180deg, #2a2418, #12100c);
-}
-
-.art-chair {
-  background:
-    radial-gradient(ellipse at 50% 78%, #1a1a1a 0 22%, transparent 23%),
-    linear-gradient(180deg, #151515, #070707);
-}
-
-.art-door {
-  background:
-    linear-gradient(90deg, transparent 38%, #0a0a0a 38% 62%, transparent 62%),
-    linear-gradient(180deg, #1c140e, #090704);
-}
-
-.art-phone {
-  background:
-    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--sulfur) 35%, #111) 0 16%, transparent 17%),
-    linear-gradient(180deg, #101114, #050507);
-}
-
-.art-stamp {
-  background:
-    radial-gradient(circle at 50% 50%, transparent 36%, color-mix(in srgb, var(--danger-ui) 70%, #4a1020) 37% 42%, transparent 43%),
-    linear-gradient(180deg, #2a1014, #10070a);
-}
-
-.art-list {
-  background:
-    repeating-linear-gradient(
-      180deg,
-      transparent 0 14px,
-      color-mix(in srgb, var(--sulfur) 35%, transparent) 14px 15px
-    ),
-    linear-gradient(180deg, #16130c, #0b0a08);
-}
-
-.art-clock {
-  background:
-    radial-gradient(circle at 50% 50%, transparent 28%, var(--sulfur) 29% 31%, transparent 32%),
-    linear-gradient(180deg, #12110c, #070706);
-}
-
-.art-badge {
-  background:
-    linear-gradient(135deg, transparent 40%, color-mix(in srgb, var(--sulfur) 50%, #222) 40% 46%, transparent 46%),
-    linear-gradient(180deg, #151820, #07080b);
-}
-
-.art-letter {
-  background:
-    linear-gradient(180deg, #d8d0be 0 58%, #b7ad96 58%),
-    linear-gradient(180deg, #2a2418, #120f0c);
-  background-blend-mode: overlay, normal;
-}
-
-.art-hallway {
-  background:
-    linear-gradient(90deg, #050505 0 22%, #1a1a1a 50%, #050505 78%),
-    linear-gradient(180deg, #111, #000);
+.story-contact span {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .story-dots {
   display: flex;
   justify-content: center;
   gap: 0.35rem;
-  margin-top: 1rem;
+  margin-top: 0.25rem;
 }
 
 .story-dots span {
@@ -654,14 +505,11 @@ svg {
 }
 
 .story-controls {
-  width: min(760px, 100%);
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.35rem 1rem 0.85rem;
-  background: var(--app-bg);
+  margin-top: 0.2rem;
 }
 
 .story-controls .start-chat-button,
@@ -671,13 +519,6 @@ svg {
 
 .story-controls .text-button:disabled {
   opacity: 0.25;
-}
-
-.story-mode > .mobile-tabbar {
-  display: flex;
-  width: min(880px, 100%);
-  margin: 0 auto;
-  border-top: 1px solid var(--border);
 }
 
 .thread-header {
@@ -1389,7 +1230,8 @@ a.start-chat-button {
   font-size: 0.7rem;
 }
 
-.settings-panel > .mobile-tabbar {
+.settings-panel > .mobile-tabbar,
+.story-pane > .mobile-tabbar {
   display: none;
 }
 
@@ -1503,11 +1345,6 @@ a.start-chat-button {
 
   .inbox-shell .story-pane {
     display: none;
-  }
-
-  .story-mode {
-    width: 100%;
-    border: 0;
   }
 
   .desktop-empty-chat {

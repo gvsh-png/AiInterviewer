@@ -83,7 +83,9 @@ export default function ContactsSidebar({
         </Link>
       </header>
 
-      <p className="round-chip">{roundLabel}</p>
+      <Link href="/story" className="round-chip">
+        {roundLabel}
+      </Link>
 
       <label className="chat-search">
         <svg viewBox="0 0 24 24" aria-hidden>
@@ -143,7 +145,7 @@ export default function ContactsSidebar({
           <div className="empty-contacts">
             <p>No one has messaged you yet.</p>
             <Link href="/story" className="start-chat-button">
-              Open story mode
+              Continue the story
             </Link>
           </div>
         ) : null}

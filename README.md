@@ -5,7 +5,7 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 ## Features
 
 - Empty inbox on first visit — no character roster, no plus button, no job picker
-- **Story mode** (`/story`) is a full comic-panel sequence: prologue, round briefings, assigned contact, aftermath, ending
+- **Story** tab: short prologue, then the assigned contact, aftermath, and ending — same messenger layout as chats
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call

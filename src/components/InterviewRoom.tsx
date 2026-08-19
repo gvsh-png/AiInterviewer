@@ -75,6 +75,7 @@ export default function InterviewRoom({
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
+  const autoStartRef = useRef(false);
 
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
@@ -313,23 +314,27 @@ export default function InterviewRoom({
     startListen();
   };
 
-  const beginInterview = () => {
+  const beginInterview = useCallback(() => {
     cancel();
     stopListen();
     setError(null);
     setStarted(true);
     const themId = uid();
-    setLines([
-      { id: themId, role: "them", text: openingLine },
-    ]);
-    setMessages([
-      { role: "assistant", content: openingLine },
-    ]);
+    setLines([{ id: themId, role: "them", text: openingLine }]);
+    setMessages([{ role: "assistant", content: openingLine }]);
     setMeta({ turnCount: 0, therapyScore: 0, phase: "strict", lastImageTurn: 0 });
     setTyped("");
     updateContact(interviewer.id, { preview: openingLine, verdict: undefined });
     startPersonaSpeech(themId, openingLine);
-  };
+  }, [cancel, stopListen, openingLine, interviewer.id, startPersonaSpeech]);
+
+  useEffect(() => {
+    if (!hydrated || !contact || started || storedVerdict || autoStartRef.current) {
+      return;
+    }
+    autoStartRef.current = true;
+    beginInterview();
+  }, [hydrated, contact, started, storedVerdict, beginInterview]);
 
   const restart = () => {
     cancel();
@@ -344,6 +349,7 @@ export default function InterviewRoom({
     setSpeechReveal(null);
     updateContact(interviewer.id, { verdict: undefined, preview: "New interview" });
     clearConversation(interviewer.id);
+    autoStartRef.current = false;
   };
 
   const logout = async () => {
@@ -478,9 +484,7 @@ export default function InterviewRoom({
                 </button>
               </>
             ) : (
-              <button type="button" className="start-chat-button" onClick={beginInterview}>
-                Start conversation
-              </button>
+              <small>They are reaching you…</small>
             )}
             <small>
               {ttsOk
