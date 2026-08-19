@@ -6,10 +6,12 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 
 - Empty inbox on first visit — no character roster, no plus button, no job picker
 - **Story** tab: pick one of three nights, then full-screen cutscenes (prologue, arrival, aftermath, midpoint, ending)
-- Each night is a different story kind; OpenRouter writes lines and generates stills; the opening shot is video; a score plays under the scene
+- Each night is a different story kind; every cutscene shot generates a new photo and motion plate, with baked stills as fallback
+- Each interviewer has their own score under the chat; cutscenes play the night or that person
+- Derek is more likely to be the assigned contact, especially on the first hour
 - The twelfth hour always closes with a letter. After that, Story plays the ending.
-- Cutscene stills are baked once into `public/stills/` (regenerate with `npm run bake:stills`)
-- The opening night shot plays `public/stills/intro.mp4` (looping, muted) instead of a still
+- Cutscene stills are baked into `public/stills/` as fallbacks (regenerate with `npm run bake:stills`)
+- Each cutscene shot generates a new photo pair and plays it as a looping motion plate; intro.mp4 is only a fallback
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call

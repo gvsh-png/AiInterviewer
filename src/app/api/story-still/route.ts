@@ -15,6 +15,8 @@ type Body = {
   kicker?: string;
   line?: string;
   personName?: string;
+  unique?: string;
+  variant?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -30,6 +32,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ src: fallback, source: "baked" });
     }
 
+    const unique =
+      String(body.unique || "").trim() ||
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const prompt = stillPrompt({
       still,
       kicker: String(body.kicker || night?.kicker || "PROBE"),
@@ -38,12 +43,14 @@ export async function POST(req: NextRequest) {
       premise: String(body.premise || ""),
       throughline: String(body.throughline || ""),
       personName: String(body.personName || ""),
+      unique,
+      variant: String(body.variant || "a"),
     });
     const image = await generateOpenRouterImage(apiKey, prompt, "16:9");
     if (!image) {
       return NextResponse.json({ src: fallback, source: "baked" });
     }
-    return NextResponse.json({ src: image, source: "openrouter" });
+    return NextResponse.json({ src: image, source: "openrouter", unique });
   } catch {
     return NextResponse.json(
       { src: "/stills/night.jpg", source: "baked" },

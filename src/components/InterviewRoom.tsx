@@ -51,6 +51,7 @@ import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import NightNote from "@/components/NightNote";
+import { startPersonScore, stopNightScore } from "@/lib/nightScore";
 
 type Line = {
   id: string;
@@ -177,6 +178,11 @@ export default function InterviewRoom({
   useEffect(() => {
     lockedRef.current = inputLocked;
   }, [inputLocked]);
+
+  useEffect(() => {
+    void startPersonScore(interviewer.id);
+    return () => stopNightScore();
+  }, [interviewer.id]);
 
   const onFinalSpeech = useCallback((text: string) => {
     if (lockedRef.current) return;

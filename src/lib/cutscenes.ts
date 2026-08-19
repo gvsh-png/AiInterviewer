@@ -316,6 +316,8 @@ export function stillPrompt(input: {
   premise?: string;
   throughline?: string;
   personName?: string;
+  unique?: string;
+  variant?: string;
 }): string {
   const scene = STILL_SCENES[input.still];
   const mood = [input.night, input.premise, input.throughline]
@@ -325,6 +327,10 @@ export function stillPrompt(input: {
     input.still === "portrait" && input.personName
       ? `This is the room where ${input.personName} will sit. Do not draw a face.`
       : "No people, or only distant unrecognizable silhouettes.";
+  const camera =
+    input.variant === "b"
+      ? "Camera: slightly tighter, different angle, slow drift to the right."
+      : "Camera: wider establishing frame, slow push-in.";
   return [
     "Photorealistic cinematic still, 16:9 widescreen, analog film grain, late-night corporate architecture.",
     "Motivated practical lighting, slightly unsettling, no cartoon, no illustration.",
@@ -332,7 +338,11 @@ export function stillPrompt(input: {
     `Scene: ${scene}.`,
     mood ? `Atmosphere: ${mood}` : "",
     who,
+    camera,
     `Tone of the hour: ${input.kicker}. ${input.line}`,
+    input.unique
+      ? `This must be a brand-new plate, unique generation ${input.unique}. Do not copy a previous still.`
+      : "",
   ]
     .filter(Boolean)
     .join(" ");

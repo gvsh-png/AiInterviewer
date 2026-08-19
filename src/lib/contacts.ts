@@ -79,6 +79,30 @@ export function unusedInterviewers() {
   return INTERVIEWERS.filter((person) => !used.has(person.id));
 }
 
+export const DEREK_ASSIGN_WEIGHT = 4;
+export const DEREK_FIRST_HOUR_WEIGHT = 8;
+
+export function assignmentWeight(id: InterviewerId, firstHour = false) {
+  if (id !== "derek") return 1;
+  return firstHour ? DEREK_FIRST_HOUR_WEIGHT : DEREK_ASSIGN_WEIGHT;
+}
+
+export function pickWeightedInterviewer<T extends { id: InterviewerId }>(
+  pool: T[],
+  rand: () => number = randomUnit,
+  firstHour = false
+): T | null {
+  if (!pool.length) return null;
+  const weights = pool.map((item) => assignmentWeight(item.id, firstHour));
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  let roll = rand() * total;
+  for (let i = 0; i < pool.length; i += 1) {
+    roll -= weights[i]!;
+    if (roll <= 0) return pool[i]!;
+  }
+  return pool[pool.length - 1]!;
+}
+
 export function assignNextStoryContact(options?: {
   seed?: string;
 }): AssignedContact | null {
@@ -86,7 +110,12 @@ export function assignNextStoryContact(options?: {
   const pool = unusedInterviewers();
   if (!pool.length) return null;
   const existing = readContacts();
-  const pick = pool[Math.floor(randomUnit() * pool.length)]!;
+  const pick = pickWeightedInterviewer(
+    pool,
+    randomUnit,
+    existing.length === 0
+  );
+  if (!pick) return null;
   const used = existing
     .map((item) => item.directiveId)
     .filter((id): id is string => Boolean(id));

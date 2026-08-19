@@ -685,6 +685,16 @@ svg {
     kenburns 18s ease-out forwards;
 }
 
+canvas.cutscene-photo {
+  opacity: 0;
+  animation: none;
+}
+
+canvas.cutscene-photo.live {
+  opacity: 1;
+  animation: cutscene-fade 0.45s ease;
+}
+
 @keyframes kenburns {
   from {
     transform: scale(1.04);

@@ -1,4 +1,7 @@
+import type { InterviewerId } from "@/lib/interviewers";
 import type { NightMood } from "@/lib/storySeed";
+
+type Wave = OscillatorType;
 
 type Patch = {
   freqs: number[];
@@ -6,9 +9,10 @@ type Patch = {
   filter: number;
   lfo: number;
   volume: number;
+  wave?: Wave;
 };
 
-const PATCHES: Record<NightMood, Patch> = {
+const NIGHT_PATCHES: Record<NightMood, Patch> = {
   watched: {
     freqs: [55, 82.4, 110],
     noise: 0.03,
@@ -53,16 +57,115 @@ const PATCHES: Record<NightMood, Patch> = {
   },
 };
 
+export const PERSON_PATCHES: Record<InterviewerId, Patch> = {
+  derek: {
+    freqs: [49, 61.74, 98],
+    noise: 0.055,
+    filter: 340,
+    lfo: 0.048,
+    volume: 0.042,
+    wave: "triangle",
+  },
+  marlene: {
+    freqs: [65.41, 98, 130.81],
+    noise: 0.028,
+    filter: 760,
+    lfo: 0.11,
+    volume: 0.038,
+    wave: "sine",
+  },
+  voss: {
+    freqs: [38.89, 77.78, 103.83],
+    noise: 0.07,
+    filter: 280,
+    lfo: 0.035,
+    volume: 0.044,
+    wave: "sawtooth",
+  },
+  celeste: {
+    freqs: [52, 78, 156],
+    noise: 0.022,
+    filter: 920,
+    lfo: 0.08,
+    volume: 0.036,
+    wave: "sine",
+  },
+  griffin: {
+    freqs: [58.27, 87.31, 116.54],
+    noise: 0.03,
+    filter: 640,
+    lfo: 0.09,
+    volume: 0.04,
+    wave: "triangle",
+  },
+  pike: {
+    freqs: [43.65, 87.31],
+    noise: 0.018,
+    filter: 410,
+    lfo: 0.03,
+    volume: 0.035,
+    wave: "sine",
+  },
+  june: {
+    freqs: [69.3, 103.83, 138.59],
+    noise: 0.04,
+    filter: 1100,
+    lfo: 0.14,
+    volume: 0.037,
+    wave: "triangle",
+  },
+  romanov: {
+    freqs: [36.71, 55, 73.42],
+    noise: 0.05,
+    filter: 300,
+    lfo: 0.045,
+    volume: 0.043,
+    wave: "sawtooth",
+  },
+  ashley: {
+    freqs: [73.42, 110, 146.83],
+    noise: 0.033,
+    filter: 980,
+    lfo: 0.12,
+    volume: 0.038,
+    wave: "sine",
+  },
+  hector: {
+    freqs: [41.2, 82.41, 123.47],
+    noise: 0.06,
+    filter: 360,
+    lfo: 0.05,
+    volume: 0.04,
+    wave: "triangle",
+  },
+  vera: {
+    freqs: [48.99, 97.99],
+    noise: 0.025,
+    filter: 520,
+    lfo: 0.06,
+    volume: 0.036,
+    wave: "sine",
+  },
+  knox: {
+    freqs: [55, 82.41, 164.81],
+    noise: 0.048,
+    filter: 470,
+    lfo: 0.1,
+    volume: 0.041,
+    wave: "triangle",
+  },
+};
+
 type Handle = {
   ctx: AudioContext;
   master: GainNode;
   nodes: AudioNode[];
-  timer?: number;
 };
 
 let handle: Handle | null = null;
 let muted = false;
-let currentMood: NightMood | null = null;
+let currentKey = "";
+let currentVolume = 0.06;
 
 export function musicMuted() {
   return muted;
@@ -72,23 +175,32 @@ export function setMusicMuted(next: boolean) {
   muted = next;
   if (handle) {
     handle.master.gain.setTargetAtTime(
-      next ? 0 : PATCHES[currentMood || "watched"].volume,
+      next ? 0 : currentVolume,
       handle.ctx.currentTime,
       0.08
     );
   }
 }
 
-export async function startNightScore(mood: NightMood) {
+export function startNightScore(mood: NightMood) {
+  return startScore(`night:${mood}`, NIGHT_PATCHES[mood]);
+}
+
+export function startPersonScore(id: InterviewerId) {
+  return startScore(`person:${id}`, PERSON_PATCHES[id]);
+}
+
+async function startScore(key: string, patch: Patch) {
   if (typeof window === "undefined") return;
-  if (currentMood === mood && handle) {
+  if (currentKey === key && handle) {
     if (!muted) {
       handle.master.gain.setTargetAtTime(
-        PATCHES[mood].volume,
+        patch.volume,
         handle.ctx.currentTime,
         0.2
       );
     }
+    currentVolume = patch.volume;
     return;
   }
   stopNightScore();
@@ -105,17 +217,17 @@ export async function startNightScore(mood: NightMood) {
       return;
     }
   }
-  const patch = PATCHES[mood];
   const master = ctx.createGain();
   master.gain.value = 0;
   master.connect(ctx.destination);
   const nodes: AudioNode[] = [master];
+  const wave = patch.wave || "sine";
 
   for (const freq of patch.freqs) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
-    osc.type = "sine";
+    osc.type = wave;
     osc.frequency.value = freq;
     filter.type = "lowpass";
     filter.frequency.value = patch.filter;
@@ -155,7 +267,8 @@ export async function startNightScore(mood: NightMood) {
   nodes.push(noise, noiseFilter, noiseGain);
 
   handle = { ctx, master, nodes };
-  currentMood = mood;
+  currentKey = key;
+  currentVolume = patch.volume;
   const target = muted ? 0 : patch.volume;
   master.gain.linearRampToValueAtTime(target, ctx.currentTime + 1.4);
 }
@@ -181,6 +294,6 @@ export function stopNightScore() {
   }, 400);
   if (handle === current) {
     handle = null;
-    currentMood = null;
+    currentKey = "";
   }
 }

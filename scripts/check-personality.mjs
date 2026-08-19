@@ -5,6 +5,11 @@ import {
   buildSystemPrompt,
 } from "../src/lib/personality.ts";
 import { INTERVIEWERS, getInterviewer } from "../src/lib/interviewers.ts";
+import {
+  DEREK_ASSIGN_WEIGHT,
+  pickWeightedInterviewer,
+} from "../src/lib/contacts.ts";
+import { PERSON_PATCHES } from "../src/lib/nightScore.ts";
 import { coverOpeningLine } from "../src/lib/cover.ts";
 import { extractVerdict, forceCloseInterview } from "../src/lib/verdict.ts";
 import {
@@ -322,5 +327,29 @@ assert.equal(storyKinds.length, 3);
 assert.equal(storyKinds[0]?.id, offerStoryKinds("seed-kinds")[0]?.id);
 const nightText = NIGHTS.map((item) => `${item.title} ${item.hook} ${item.visual}`).join(" ");
 assert.equal(/twist|stalker|cult/i.test(nightText), false);
+
+assert.ok(DEREK_ASSIGN_WEIGHT >= 4);
+assert.equal(
+  pickWeightedInterviewer(INTERVIEWERS, () => 0, false)?.id,
+  "derek"
+);
+assert.equal(
+  pickWeightedInterviewer(INTERVIEWERS, () => 0.26, false)?.id,
+  "derek"
+);
+assert.equal(
+  pickWeightedInterviewer(INTERVIEWERS, () => 0.28, false)?.id,
+  "marlene"
+);
+assert.equal(Object.keys(PERSON_PATCHES).length, INTERVIEWERS.length);
+const uniquePlate = stillPrompt({
+  still: "night",
+  line: "The glass does not advertise.",
+  kicker: "PROBE",
+  unique: "plate-77",
+  variant: "b",
+});
+assert.match(uniquePlate, /plate-77/);
+assert.match(uniquePlate, /different angle/i);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

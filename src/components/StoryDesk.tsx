@@ -555,6 +555,8 @@ function StoryKindCard({
         nightId,
         kicker,
         line: hook,
+        unique: `${nightId}-${Date.now().toString(36)}`,
+        variant: "a",
       }),
     })
       .then(async (res) => {
