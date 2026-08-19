@@ -181,26 +181,27 @@ export function isStance(value: string): value is Stance {
   return value === "work" || value === "probe" || value === "soften";
 }
 
+export const QUESTIONS_PER_HOUR = 5;
+
 export function hourAct(round: number): 1 | 2 | 3 | 4 {
-  if (round <= 3) return 1;
-  if (round <= 6) return 2;
-  if (round <= 9) return 3;
+  if (round <= 2) return 1;
+  if (round === 3) return 2;
+  if (round === 4) return 3;
   return 4;
 }
 
 export function hourWindow(
   round: number,
   callbackRound = false,
-  total = 12
+  total = 5
 ) {
   const lastHour = round >= total;
-  const act = hourAct(round);
-  const minVerdict = lastHour ? 4 : act === 1 ? 6 : act === 2 ? 5 : 4;
-  const forceVerdict = lastHour ? 4 : act === 1 ? 8 : act === 2 ? 7 : act === 3 ? 6 : 5;
+  const minVerdict = QUESTIONS_PER_HOUR;
+  const forceVerdict = QUESTIONS_PER_HOUR;
   if (!callbackRound || lastHour) return { minVerdict, forceVerdict };
   return {
-    minVerdict: minVerdict + 2,
-    forceVerdict: forceVerdict + 2,
+    minVerdict: minVerdict + 1,
+    forceVerdict: forceVerdict + 1,
   };
 }
 
@@ -211,8 +212,8 @@ export function minutesLeft(turnCount: number, forceVerdict: number) {
 export function clockLabel(turnCount: number, forceVerdict: number) {
   const left = minutesLeft(turnCount, forceVerdict);
   if (left <= 0) return "The letter is being typed";
-  if (left === 1) return "One minute left in the hour";
-  return `${left} minutes left in the hour`;
+  if (left === 1) return "Last question in the hour";
+  return `Question ${turnCount + 1} of ${forceVerdict}`;
 }
 
 export function getDirective(id: string | undefined | null) {
@@ -353,9 +354,7 @@ Premise: ${stats.premiseTitle || "The file is already open"}.
 Through-line they should feel, never explained as a game: ${
       stats.throughlineEcho || "The building keeps copies."
     }
-Hour ${stats.round} of ${stats.total}. Letters tend to land between minute ${
-      window.minVerdict
-    } and ${window.forceVerdict}. Later hours are shorter.`,
+Hour ${stats.round} of ${stats.total}. Letters land after ${window.forceVerdict} questions. Five hours, five questions.`,
     `Sample so far: ${stats.hires} hired, ${stats.rejects} rejected, ${stats.obsessed} personal letters, ${stats.cleanPasses} clean hours, ${stats.flagged} flagged hours.`,
     `Building temperature: ${temp}.`,
   ];

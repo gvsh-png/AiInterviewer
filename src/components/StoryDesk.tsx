@@ -19,7 +19,6 @@ import {
   parseContactsSnapshot,
   readContacts,
   subscribeToContacts,
-  unusedInterviewers,
 } from "@/lib/contacts";
 import {
   EMPTY_SNAPSHOT,
@@ -109,7 +108,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   const kind = chapterToKind(campaign.chapter);
   const done = completedContacts(contacts);
   const current = activeContact(contacts);
-  const remaining = unusedInterviewers().length;
+  const remaining = totalRounds() - contacts.length;
   const currentPerson = current
     ? getInterviewer(current.interviewerId)
     : null;
@@ -264,7 +263,7 @@ export default function StoryDesk({ playHere = false }: Props) {
 
     if (kind === "aftermath") {
       const state = readCampaign();
-      if (done.length >= 6 && !state.midpointSeen && remaining > 0) {
+      if (done.length >= 3 && !state.midpointSeen && remaining > 0) {
         updateCampaign({ chapter: "midpoint", cutsceneDone: false });
         return;
       }
@@ -475,11 +474,11 @@ function cutsceneRound(
   remaining: number
 ) {
   if (kind === "prologue") return 1;
-  if (kind === "midpoint") return 6;
-  if (kind === "ending") return 12;
+  if (kind === "midpoint") return 3;
+  if (kind === "ending") return 5;
   if (kind === "aftermath") return Math.max(1, doneCount);
   return Math.min(
-    12,
+    5,
     doneCount + (hasCurrent || remaining > 0 ? 1 : 0) || 1
   );
 }
@@ -493,7 +492,7 @@ function actionLabel(
   if (kind === "arrive") return "Open chat";
   if (kind === "midpoint") return "Continue";
   if (kind === "ending") return "File the night";
-  if (doneCount >= 6 && remaining > 0) return "Continue";
+  if (doneCount >= 3 && remaining > 0) return "Continue";
   return remaining > 0 ? "Next interview" : "See the ending";
 }
 

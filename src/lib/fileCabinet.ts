@@ -51,28 +51,28 @@ export const BUILDING_MEMOS: BuildingMemo[] = [
   },
   {
     id: "watch",
-    after: 3,
+    after: 2,
     kicker: "Memo",
     title: "The board is copied live",
-    body: "Three hours is enough for a pattern. Keep answers short. Soft hours still go in the drawer.",
+    body: "Two hours is enough for a pattern. Keep answers short. Soft hours still go in the drawer.",
   },
   {
     id: "halfway",
-    after: 6,
+    after: 3,
     kicker: "Memo",
     title: "Halfway is a measurement",
-    body: "People who leave early do not get copies. Later hours are shorter. Badge requests before three clean hours or three hires are stamped pending.",
+    body: "People who leave early do not get copies. Five questions, then a letter. Badge requests before three clean hours or three hires are stamped pending.",
   },
   {
     id: "keep",
-    after: 9,
+    after: 4,
     kicker: "Memo",
     title: "Retention",
     body: "If the letters got personal, do not answer after midnight. The chats remain. So does this file.",
   },
   {
     id: "close",
-    after: 12,
+    after: 5,
     kicker: "Memo",
     title: "Sample complete",
     body: "The printers have what they need. Read the ending in Story. The file stays if they want another hour.",
@@ -85,7 +85,7 @@ export const SAMPLE_MEMOS: Array<BuildingMemo & { id: string }> = [
     after: 0,
     kicker: "Stamp",
     title: "The sample is behaving",
-    body: "Four clean hours. Upstairs noticed. Do not get comfortable. Clean is a measurement, not a kindness.",
+    body: "Three clean hours. Upstairs noticed. Do not get comfortable. Clean is a measurement, not a kindness.",
   },
   {
     id: "sample-attached",
@@ -230,7 +230,7 @@ export function unlockedSampleMemos(input: {
   rejects: number;
 }) {
   const next: BuildingMemo[] = [];
-  if (input.cleanPasses >= 4) {
+  if (input.cleanPasses >= 3) {
     const memo = SAMPLE_MEMOS.find((item) => item.id === "sample-clean");
     if (memo) next.push(memo);
   }

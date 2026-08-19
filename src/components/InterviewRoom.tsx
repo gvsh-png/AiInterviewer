@@ -30,6 +30,7 @@ import {
   subscribeToFile,
 } from "@/lib/fileCabinet";
 import {
+  QUESTIONS_PER_HOUR,
   STANCES,
   clockLabel,
   getDirective,
@@ -51,7 +52,16 @@ import PersonaAvatar from "@/components/PersonaAvatar";
 import DerekSpeechText from "@/components/DerekSpeechText";
 import ContactsSidebar from "@/components/ContactsSidebar";
 import NightNote from "@/components/NightNote";
-import { startPersonScore, stopNightScore } from "@/lib/nightScore";
+import {
+  playShockSting,
+  setScoreBpm,
+  startPersonScore,
+  stopNightScore,
+  unlockScore,
+} from "@/lib/nightScore";
+import { matchShockCut, type ShockCut } from "@/lib/shockCuts";
+import { interviewStress } from "@/lib/stress";
+import ShockCutscene from "@/components/ShockCutscene";
 
 type Line = {
   id: string;
@@ -105,7 +115,11 @@ export default function InterviewRoom({
   const [callbackLetter, setCallbackLetter] = useState<InterviewVerdict | null>(
     null
   );
+  const [shockCut, setShockCut] = useState<ShockCut | null>(null);
+  const [usedShockIds, setUsedShockIds] = useState<string[]>([]);
+  const [heardFlash, setHeardFlash] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const usedShockRef = useRef<string[]>([]);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
   const autoStartRef = useRef(false);
@@ -172,7 +186,24 @@ export default function InterviewRoom({
         ? storedVerdict
         : null;
   const decided = Boolean(closedVerdict);
-  const inputLocked = busy || preparingSpeech || themTalking || decided;
+  const shocking = Boolean(shockCut);
+  const inputLocked =
+    busy || preparingSpeech || themTalking || decided || shocking;
+  const stances = meta.stances || [];
+  const stress = interviewStress({
+    round,
+    total: totalRounds(),
+    turnCount: meta.turnCount,
+    forceVerdict: windowTurns.forceVerdict,
+    therapyScore: meta.therapyScore,
+    soften: stances.filter((item) => item === "soften").length,
+    probe: stances.filter((item) => item === "probe").length,
+    shocks: usedShockIds.length,
+    callback: Boolean(meta.callbackRound),
+  });
+  const questionNow = decided
+    ? Math.min(meta.turnCount, windowTurns.forceVerdict)
+    : Math.min(meta.turnCount + 1, windowTurns.forceVerdict);
   const showThinking = busy || preparingSpeech;
 
   useEffect(() => {
@@ -180,9 +211,30 @@ export default function InterviewRoom({
   }, [inputLocked]);
 
   useEffect(() => {
+    usedShockRef.current = usedShockIds;
+  }, [usedShockIds]);
+
+  useEffect(() => {
     void startPersonScore(interviewer.id);
     return () => stopNightScore();
   }, [interviewer.id]);
+
+  useEffect(() => {
+    const kick = () => {
+      void startPersonScore(interviewer.id);
+      void unlockScore();
+    };
+    window.addEventListener("pointerdown", kick);
+    window.addEventListener("keydown", kick);
+    return () => {
+      window.removeEventListener("pointerdown", kick);
+      window.removeEventListener("keydown", kick);
+    };
+  }, [interviewer.id]);
+
+  useEffect(() => {
+    setScoreBpm(stress.bpm);
+  }, [stress.bpm]);
 
   const onFinalSpeech = useCallback((text: string) => {
     if (lockedRef.current) return;
@@ -224,7 +276,13 @@ export default function InterviewRoom({
             : [],
           callbackRound: Boolean(stored.meta.callbackRound),
           verdict: stored.meta.verdict,
+          shockIds: Array.isArray(stored.meta.shockIds)
+            ? stored.meta.shockIds
+            : [],
         });
+        setUsedShockIds(
+          Array.isArray(stored.meta.shockIds) ? stored.meta.shockIds : []
+        );
         const lastStance = stored.meta.stances?.at(-1);
         if (lastStance && isStance(lastStance)) setStance(lastStance);
         if (stored.meta.callbackRound && !stored.meta.verdict) {
@@ -310,12 +368,27 @@ export default function InterviewRoom({
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy || preparingSpeech || themTalking || decided) return;
+      if (!text || busy || preparingSpeech || themTalking || decided || shockCut) {
+        return;
+      }
 
+      void unlockScore();
       stopListen();
       setError(null);
       setBusy(true);
       setTyped("");
+
+      const alreadyUsed = usedShockRef.current;
+      const shock =
+        alreadyUsed.length < 1 ? matchShockCut(text, alreadyUsed) : null;
+      if (shock) {
+        usedShockRef.current = [...alreadyUsed, shock.id];
+        setUsedShockIds(usedShockRef.current);
+        setShockCut(shock);
+        setHeardFlash(true);
+        playShockSting();
+        window.setTimeout(() => setHeardFlash(false), 2400);
+      }
 
       const nextLines: Line[] = [...lines, { id: uid(), role: "you", text }];
       setLines(nextLines);
@@ -350,7 +423,7 @@ export default function InterviewRoom({
               cleanPasses: done.filter((item) => item.hourScore?.passed).length,
               flagged: done.filter((item) => item.hourScore && !item.hourScore.passed)
                 .length,
-              midpoint: campaign.midpointSeen || round >= 7,
+              midpoint: campaign.midpointSeen || round >= 3,
               badgeRequested: file.badgeRequested,
               hasNote: Boolean(getNote(file, interviewer.id)?.text),
               throughlineEcho: run?.throughline.echo || "",
@@ -390,6 +463,7 @@ export default function InterviewRoom({
           stances: nextStances,
           callbackRound: callback && !closed,
           verdict: closed,
+          shockIds: usedShockRef.current,
         });
         if (verdict?.decision === "callback" && !closed) {
           setCallbackLetter(verdict);
@@ -463,6 +537,7 @@ export default function InterviewRoom({
       file,
       run,
       contact,
+      shockCut,
     ]
   );
 
@@ -472,6 +547,7 @@ export default function InterviewRoom({
 
   const tryStartListen = () => {
     if (inputLocked || !sttOk) return;
+    void unlockScore();
     startListen();
   };
 
@@ -490,10 +566,17 @@ export default function InterviewRoom({
       lastImageTurn: 0,
       stances: [],
       callbackRound: false,
+      shockIds: [],
     });
     setTyped("");
     setCallbackLetter(null);
     setStance("work");
+    setShockCut(null);
+    setUsedShockIds([]);
+    usedShockRef.current = [];
+    setHeardFlash(false);
+    void startPersonScore(interviewer.id);
+    void unlockScore();
     updateContact(interviewer.id, {
       preview: openingLine,
       verdict: undefined,
@@ -534,12 +617,17 @@ export default function InterviewRoom({
       lastImageTurn: 0,
       stances: [],
       callbackRound: false,
+      shockIds: [],
     });
     setTyped("");
     setError(null);
     setSpeechReveal(null);
     setCallbackLetter(null);
     setStance("work");
+    setShockCut(null);
+    setUsedShockIds([]);
+    usedShockRef.current = [];
+    setHeardFlash(false);
     updateContact(interviewer.id, {
       verdict: undefined,
       preview: "New interview",
@@ -607,12 +695,16 @@ export default function InterviewRoom({
 
   return (
     <main
-      className="messenger-shell thread-shell"
+      className={`messenger-shell thread-shell${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}`}
       style={themeStyle(interviewer.theme) as CSSProperties}
     >
       <ContactsSidebar selectedId={interviewer.id} compact />
 
       <section className="chat-thread">
+        <div className="thread-top">
+        {stress.alert ? (
+          <p className="copied-live">COPIED LIVE · RED ALERT · {stress.bpm} BPM</p>
+        ) : null}
         <header className="thread-header">
           <Link href="/" className="mobile-back" aria-label="Back to chats">
             <svg viewBox="0 0 24 24" aria-hidden>
@@ -647,6 +739,7 @@ export default function InterviewRoom({
                 type="button"
                 className="icon-button"
                 onClick={restart}
+                disabled={shocking}
                 aria-label="Reset conversation"
               >
                 <svg viewBox="0 0 24 24" aria-hidden>
@@ -667,6 +760,28 @@ export default function InterviewRoom({
             </button>
           </div>
         </header>
+        <div
+          className={`stress-hud${stress.alert ? " alert" : ""}`}
+          aria-live="polite"
+        >
+          <span
+            className="stress-heart"
+            style={{ animationDuration: `${60 / Math.max(52, stress.bpm)}s` }}
+          >
+            ♥
+          </span>
+          <div className="stress-meta">
+            <span>{stress.label}</span>
+            <strong>{stress.bpm} BPM</strong>
+          </div>
+          <div className="stress-bar" aria-hidden>
+            <i style={{ width: `${stress.stress}%` }} />
+          </div>
+          <span className="stress-hour">
+            Q{questionNow}/{windowTurns.forceVerdict || QUESTIONS_PER_HOUR}
+          </span>
+        </div>
+        </div>
 
         {!started ? (
           <div className="new-chat-state">
@@ -706,7 +821,8 @@ export default function InterviewRoom({
             <div className="transcript" ref={scrollRef}>
               <div className="hour-brief">
                 <p className="app-kicker">
-                  Hour {round} of {totalRounds()} · {directive.kicker}
+                  Hour {round} of {totalRounds()} · Question {questionNow} of{" "}
+                  {windowTurns.forceVerdict || QUESTIONS_PER_HOUR}
                 </p>
                 <strong>{directive.title}</strong>
                 <span>{directive.body}</span>
@@ -909,6 +1025,15 @@ export default function InterviewRoom({
           </>
         )}
       </section>
+      {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
+      {heardFlash ? (
+        <div className="they-heard" role="status">
+          THEY HEARD THAT
+        </div>
+      ) : null}
+      {shockCut ? (
+        <ShockCutscene cut={shockCut} onDone={() => setShockCut(null)} />
+      ) : null}
     </main>
   );
 }

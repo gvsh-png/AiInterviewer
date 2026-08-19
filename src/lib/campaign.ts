@@ -1,4 +1,3 @@
-import { INTERVIEWERS } from "@/lib/interviewers";
 import type { AssignedContact } from "@/lib/contacts";
 import type { VerdictDecision } from "@/lib/verdict";
 import {
@@ -276,8 +275,10 @@ export function recapFromChapter(
   };
 }
 
+export const NIGHT_HOURS = 5;
+
 export function totalRounds() {
-  return INTERVIEWERS.length;
+  return NIGHT_HOURS;
 }
 
 export function hourClosed(item: AssignedContact) {
@@ -342,8 +343,8 @@ export function endingKey(contacts: AssignedContact[]): EndingKey {
   const obsessed = done.filter(
     (item) => item.verdict?.decision === "obsessed"
   ).length;
-  if (obsessed >= 3) return "kept";
-  if (hires >= 6) return "staff";
+  if (obsessed >= 2) return "kept";
+  if (hires >= 3) return "staff";
   if (hires === 0) return "sample";
   return "mixed";
 }
