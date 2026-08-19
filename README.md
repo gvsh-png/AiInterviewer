@@ -8,6 +8,7 @@ A story campaign of twelve voice interviews. You never pick the job. PROBE assig
 - **Story** tab: full-screen cutscenes (prologue, arrival, aftermath, midpoint, ending), then a recap you can replay
 - Each run rolls a random premise, night, and through-line; OpenRouter rewrites the shot lines when a key is set
 - Cutscene stills are baked once into `public/stills/` (regenerate with `npm run bake:stills`)
+- The opening night shot plays `public/stills/intro.mp4` (looping, muted) instead of a still
 - Each round assigns a random stored interviewer (name, photo, voice, personality) and **their** job
 - Contacts only show name, title, company, and the assigned role
 - Their twist is not shown in the UI and is not announced at the start of the call

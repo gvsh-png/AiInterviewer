@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   assembleShots,
+  ensureOpeningNight,
   validateShots,
   type CutsceneContext,
   type CutsceneKind,
@@ -128,7 +129,10 @@ Rules:
     } catch {
       parsed = null;
     }
-    const shots = validateShots(parsed) || fallback;
+    const shots = ensureOpeningNight(
+      ctx.kind,
+      validateShots(parsed) || fallback
+    );
     if (ctx.kind === "arrive" && ctx.person) {
       const last = shots[shots.length - 1];
       if (last) last.still = "portrait";

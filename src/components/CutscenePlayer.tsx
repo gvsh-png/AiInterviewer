@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Interviewer } from "@/lib/interviewers";
-import { stillSrc, type Shot } from "@/lib/cutscenes";
+import { stillSrc, stillVideo, type Shot } from "@/lib/cutscenes";
 import PersonaAvatar from "@/components/PersonaAvatar";
 
 export default function CutscenePlayer({
@@ -26,6 +26,7 @@ export default function CutscenePlayer({
   const shot = list[safeIndex]!;
   const last = safeIndex >= list.length - 1;
   const imageUrl = stillSrc(shot.still);
+  const videoUrl = safeIndex === 0 ? stillVideo(shot.still) : null;
 
   const stopAudio = () => {
     const audio = audioRef.current;
@@ -102,8 +103,26 @@ export default function CutscenePlayer({
       role="presentation"
     >
       <div className={`cutscene-still still-${shot.still} has-photo`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- baked public stills */}
-        <img className="cutscene-photo" src={imageUrl} alt="" draggable={false} />
+        {videoUrl ? (
+          <video
+            key={videoUrl}
+            className="cutscene-photo"
+            src={videoUrl}
+            poster={imageUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            disableRemotePlayback
+          />
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- baked public stills */}
+            <img className="cutscene-photo" src={imageUrl} alt="" draggable={false} />
+          </>
+        )}
         {shot.still === "portrait" && person ? (
           <PersonaAvatar interviewer={person} size="lg" />
         ) : null}

@@ -32,6 +32,11 @@ export function stillSrc(kind: StillKind) {
   return `/stills/${kind}.jpg`;
 }
 
+export function stillVideo(kind: StillKind) {
+  if (kind === "night") return "/stills/intro.mp4";
+  return null;
+}
+
 export function isStillKind(value: string): value is StillKind {
   return STILL_KINDS.includes(value as StillKind);
 }
@@ -48,6 +53,14 @@ export type Shot = {
   kicker: string;
   line: string;
 };
+
+/** Opening shot of the campaign is the looping night video, not a still. */
+export function ensureOpeningNight(kind: CutsceneKind, shots: Shot[]): Shot[] {
+  if (kind !== "prologue" || shots.length === 0) return shots;
+  const first = shots[0]!;
+  if (first.still === "night") return shots;
+  return [{ ...first, still: "night" }, ...shots.slice(1)];
+}
 
 export type CutscenePerson = {
   name: string;

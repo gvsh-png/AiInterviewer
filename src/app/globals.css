@@ -598,6 +598,7 @@ svg {
   object-fit: cover;
   object-position: center;
   z-index: 0;
+  pointer-events: none;
   animation: cutscene-fade 0.45s ease;
 }
 

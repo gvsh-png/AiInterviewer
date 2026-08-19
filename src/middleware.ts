@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.endsWith(".png") ||
     pathname.endsWith(".webp") ||
+    pathname.endsWith(".mp4") ||
     pathname.endsWith(".jpg") ||
     pathname.endsWith(".jpeg") ||
     pathname.startsWith("/stills") ||

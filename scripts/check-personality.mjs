@@ -27,7 +27,9 @@ import {
 import {
   STILL_KINDS,
   assembleShots,
+  ensureOpeningNight,
   stillPrompt,
+  stillVideo,
   validateShots,
 } from "../src/lib/cutscenes.ts";
 
@@ -97,6 +99,10 @@ for (const kind of kinds) {
   });
   assert.ok(shots.length >= 2, `${kind} should have shots`);
   assert.ok(shots.every((shot) => STILL_KINDS.includes(shot.still)));
+  if (kind === "prologue") {
+    assert.equal(shots[0]?.still, "night");
+    assert.equal(stillVideo(shots[0].still), "/stills/intro.mp4");
+  }
   if (kind === "arrive") {
     assert.equal(shots[shots.length - 1]?.still, "portrait");
   }
@@ -138,6 +144,14 @@ const valid = validateShots({
 });
 assert.equal(valid?.length, 2);
 assert.equal(validateShots({ shots: [{ still: "nope", line: "x" }] }), null);
+assert.equal(
+  ensureOpeningNight("prologue", [
+    { still: "building", kicker: "PROBE", line: "The glass does not advertise." },
+    { still: "desk", kicker: "Intake", line: "You sit down." },
+  ])[0]?.still,
+  "night"
+);
+assert.equal(stillVideo("file"), null);
 
 assert.match(aftermathLine("hire"), /hired/i);
 assert.match(aftermathLine("obsessed"), /letter/i);

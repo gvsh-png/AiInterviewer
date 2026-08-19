@@ -43,6 +43,7 @@ import {
 import {
   assembleShots,
   cacheKey,
+  ensureOpeningNight,
   type CutsceneContext,
   type CutsceneKind,
   type Shot,
@@ -170,9 +171,11 @@ export default function StoryDesk({ playHere = false }: Props) {
   }
 
   const filedShots = useMemo(() => {
-    if (remoteShots?.length) return remoteShots;
-    return campaign.shotCache[cacheKey(ctx)] ?? assembleShots(ctx);
-  }, [remoteShots, ctx, campaign.shotCache]);
+    const shots = remoteShots?.length
+      ? remoteShots
+      : campaign.shotCache[cacheKey(ctx)] ?? assembleShots(ctx);
+    return ensureOpeningNight(kind, shots);
+  }, [remoteShots, ctx, campaign.shotCache, kind]);
 
   useEffect(() => {
     freezeShots.current = false;
