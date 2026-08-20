@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import {
+  DEFAULT_FUN_PREFS,
   getFunPrefs,
   playFun,
   setFunPrefs,
@@ -19,7 +20,7 @@ export default function FunControls() {
   const prefs = useSyncExternalStore(
     subscribeToFunPrefs,
     getFunPrefs,
-    () => ({ foley: true, haptics: true, toys: true })
+    () => DEFAULT_FUN_PREFS
   );
 
   return (
