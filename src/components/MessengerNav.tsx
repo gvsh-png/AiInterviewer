@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import { deskClick, playFun } from "@/lib/funKit";
-import { funRipple } from "@/components/FunLayer";
+import { deskClick, funRipple, playFun } from "@/lib/funKit";
 
 type MessengerNavProps = {
   active: "chats" | "story" | "file" | "settings";

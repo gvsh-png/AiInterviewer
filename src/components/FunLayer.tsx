@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   CHAIR_LINES,
+  DEFAULT_FUN_PREFS,
+  EMPTY_FUN_STATE,
   FUN_EVENT,
   bumpChair,
   bumpKnocks,
-  emitFun,
   getFunPrefs,
   getFunState,
   grantAward,
@@ -24,16 +25,48 @@ import { musicMuted } from "@/lib/nightScore";
 type Dot = { id: number; x: number; y: number };
 type Toast = { id: string; text: string };
 
-export default function FunLayer() {
+class FunGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    /* toys must never take the hour down */
+  }
+
+  render() {
+    if (this.state.failed) return null;
+    return this.props.children;
+  }
+}
+
+function subscribeClock(onChange: () => void) {
+  const id = window.setInterval(onChange, 30_000);
+  return () => window.clearInterval(id);
+}
+
+function readClock() {
+  return new Date().toTimeString().slice(0, 5);
+}
+
+function FunDesk() {
+  const live = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const clock = useSyncExternalStore(subscribeClock, readClock, () => "--:--");
   const prefs = useSyncExternalStore(
     subscribeToFunPrefs,
     getFunPrefs,
-    () => ({ foley: true, haptics: true, toys: true })
+    () => DEFAULT_FUN_PREFS
   );
   const state = useSyncExternalStore(
     subscribeToFunState,
     getFunState,
-    getFunState
+    () => EMPTY_FUN_STATE
   );
   const [dots, setDots] = useState<Dot[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -48,6 +81,7 @@ export default function FunLayer() {
   const idRef = useRef(0);
 
   useEffect(() => {
+    if (!live) return;
     touchNightStreak();
     document.documentElement.classList.add("fun-desk");
     document.documentElement.dataset.funToys = prefs.toys ? "on" : "off";
@@ -56,7 +90,7 @@ export default function FunLayer() {
     return () => {
       document.documentElement.classList.remove("fun-desk", "fun-still");
     };
-  }, [prefs.toys]);
+  }, [live, prefs.toys]);
 
   useEffect(() => {
     const onBurst = (event: Event) => {
@@ -115,7 +149,7 @@ export default function FunLayer() {
   }, []);
 
   useEffect(() => {
-    if (!prefs.toys || !motionOk()) return;
+    if (!live || !prefs.toys || !motionOk()) return;
     const move = (event: globalThis.PointerEvent) => {
       idRef.current += 1;
       const dot = { id: idRef.current, x: event.clientX, y: event.clientY };
@@ -126,7 +160,7 @@ export default function FunLayer() {
     };
     window.addEventListener("pointermove", move);
     return () => window.removeEventListener("pointermove", move);
-  }, [prefs.toys]);
+  }, [live, prefs.toys]);
 
   useEffect(() => {
     const onShake = () => playFun("shake-dust");
@@ -168,6 +202,8 @@ export default function FunLayer() {
     tapHaptic(knocks >= 3 ? [20, 40, 20, 40, 80] : 16);
   };
 
+  if (!live) return null;
+
   if (!prefs.toys) {
     return (
       <div className="fun-layer muted" aria-hidden data-fun="toys-pref">
@@ -200,7 +236,7 @@ export default function FunLayer() {
       <div className="fun-coffee" data-fun="coffee-ring" />
       <div className="fun-smudge" data-fun="glass-smudge" />
       <div className="fun-floor" data-fun="floor-number">
-        FL {Math.max(1, state.streakCount || 4)}
+        FL {Math.max(1, state.streakCount || 1)}
       </div>
       <p className="fun-streak" data-fun="night-streak">
         {state.streakCount > 1 ? `${state.streakCount} nights` : "tonight"}
@@ -208,7 +244,7 @@ export default function FunLayer() {
       <i className="fun-select-mark" data-fun="highlighter" />
       <i className="fun-scroll-mark" data-fun="paper-scroll" />
       <div className="fun-clock" data-fun="night-clock">
-        {new Date().toTimeString().slice(0, 5)}
+        {clock}
       </div>
       <p className="fun-ticker" data-fun="memo-ticker">
         COPIED LIVE · THE PRINTERS HAVE THE LAST LINE · KEEP THE HOUR SHORT
@@ -268,11 +304,10 @@ export default function FunLayer() {
   );
 }
 
-export function funRipple(event: ReactPointerEvent | ReactMouseEvent) {
-  const node = event.currentTarget as HTMLElement;
-  node.classList.add("fun-rippling");
-  playFun("ink-ripple", { x: event.clientX, y: event.clientY });
-  window.setTimeout(() => node.classList.remove("fun-rippling"), 420);
+export default function FunLayer() {
+  return (
+    <FunGuard>
+      <FunDesk />
+    </FunGuard>
+  );
 }
-
-export { emitFun };

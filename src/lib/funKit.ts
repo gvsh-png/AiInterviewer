@@ -137,9 +137,13 @@ export type FunState = {
   seenNight: string;
 };
 
-const DEFAULT_PREFS: FunPrefs = { foley: true, haptics: true, toys: true };
+export const DEFAULT_FUN_PREFS: FunPrefs = {
+  foley: true,
+  haptics: true,
+  toys: true,
+};
 
-const EMPTY_STATE: FunState = {
+export const EMPTY_FUN_STATE: FunState = {
   pins: [],
   stamps: [],
   awards: [],
@@ -155,10 +159,10 @@ export function funFeatureIds() {
 }
 
 export function getFunPrefs(): FunPrefs {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
+  if (typeof window === "undefined") return DEFAULT_FUN_PREFS;
   try {
     const raw = window.localStorage.getItem(FUN_PREFS_KEY);
-    if (!raw) return DEFAULT_PREFS;
+    if (!raw) return DEFAULT_FUN_PREFS;
     const parsed = JSON.parse(raw) as Partial<FunPrefs>;
     return {
       foley: parsed.foley !== false,
@@ -166,7 +170,7 @@ export function getFunPrefs(): FunPrefs {
       toys: parsed.toys !== false,
     };
   } catch {
-    return DEFAULT_PREFS;
+    return DEFAULT_FUN_PREFS;
   }
 }
 
@@ -188,10 +192,10 @@ export function subscribeToFunPrefs(onChange: () => void) {
 }
 
 export function getFunState(): FunState {
-  if (typeof window === "undefined") return EMPTY_STATE;
+  if (typeof window === "undefined") return EMPTY_FUN_STATE;
   try {
     const raw = window.localStorage.getItem(FUN_STATE_KEY);
-    if (!raw) return { ...EMPTY_STATE };
+    if (!raw) return { ...EMPTY_FUN_STATE };
     const parsed = JSON.parse(raw) as Partial<FunState>;
     return {
       pins: Array.isArray(parsed.pins) ? parsed.pins.slice(0, 12) : [],
@@ -204,7 +208,7 @@ export function getFunState(): FunState {
       seenNight: String(parsed.seenNight || ""),
     };
   } catch {
-    return { ...EMPTY_STATE };
+    return { ...EMPTY_FUN_STATE };
   }
 }
 
@@ -346,4 +350,12 @@ export function playFun(id: string, burst: Partial<FunBurst> = {}) {
 export function deskClick(id: string) {
   playFun(id);
   tapHaptic(id === "tab-tick" || id === "nav-haptic" ? [8, 18, 8] : 12);
+}
+
+export function funRipple(event: { currentTarget: EventTarget; clientX: number; clientY: number }) {
+  const node = event.currentTarget as HTMLElement;
+  if (!node?.classList) return;
+  node.classList.add("fun-rippling");
+  playFun("ink-ripple", { x: event.clientX, y: event.clientY });
+  window.setTimeout(() => node.classList.remove("fun-rippling"), 420);
 }

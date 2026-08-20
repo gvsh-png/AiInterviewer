@@ -45,7 +45,7 @@ import {
   sampleTemperature,
   temperatureLabel,
 } from "@/lib/gameplay";
-import { deskClick, getFunState, grantAward, playFun, subscribeToFunState } from "@/lib/funKit";
+import { deskClick, getFunState, grantAward, playFun, subscribeToFunState, EMPTY_FUN_STATE } from "@/lib/funKit";
 
 export default function FileScreen() {
   const campaignRaw = useSyncExternalStore(
@@ -76,7 +76,7 @@ export default function FileScreen() {
   const toys = useSyncExternalStore(
     subscribeToFunState,
     getFunState,
-    getFunState
+    () => EMPTY_FUN_STATE
   );
 
   useEffect(() => {
