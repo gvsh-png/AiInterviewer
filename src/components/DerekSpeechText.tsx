@@ -29,7 +29,10 @@ export default function DerekSpeechText({
   chunkStartedAt = 0,
   complete = false,
 }: DerekSpeechTextProps) {
-  const activeChars = useMemo(() => Array.from(activeChunk), [activeChunk]);
+  const activeChars = useMemo(
+    () => Array.from(activeChunk || ""),
+    [activeChunk]
+  );
   const now = useSyncExternalStore(subscribeTick, getTick, getTick);
 
   const stepMs = useMemo(() => {

@@ -188,6 +188,7 @@ export default function InterviewRoom({
     null
   );
   const startTakeoverRef = useRef<() => void>(() => {});
+  const ignoreHydratedAlertRef = useRef(true);
   const whisperTimer = useRef<number | null>(null);
 
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
@@ -339,6 +340,12 @@ export default function InterviewRoom({
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
+    if (ignoreHydratedAlertRef.current) {
+      if (stress.alert) alertedRef.current = true;
+      ignoreHydratedAlertRef.current = false;
+      return;
+    }
     if (!stress.alert || alertedRef.current) return;
     alertedRef.current = true;
     pushHit({ kind: "alert", label: "RED ALERT", sub: `${stress.bpm} BPM` });
@@ -358,6 +365,7 @@ export default function InterviewRoom({
       window.setTimeout(() => startTakeoverRef.current(), 780);
     }
   }, [
+    hydrated,
     stress.alert,
     stress.bpm,
     pushHit,
@@ -970,11 +978,16 @@ export default function InterviewRoom({
     return (
       <main className="messenger-shell thread-shell">
         <ContactsSidebar selectedId={interviewer.id} compact />
-        <section className="chat-thread">
-          <div className="chat-loading" aria-hidden>
-            <span />
-            <span />
-            <span />
+        <section className="chat-thread hour-opening">
+          <div className="new-chat-state">
+            <p className="app-kicker">PROBE</p>
+            <h2>{interviewer.name}</h2>
+            <p>Opening the hour…</p>
+            <div className="chat-loading" aria-hidden>
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
         </section>
       </main>
@@ -992,6 +1005,7 @@ export default function InterviewRoom({
           : clockLabel(meta.turnCount, windowTurns.forceVerdict);
 
   return (
+    <>
     <main
       className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${invading ? " invading" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}${lastQuestion ? " fun-lights" : ""}${meta.turnCount >= 3 ? " fun-coffee" : ""}`}
       data-fun={lastQuestion ? "lights-out" : meta.turnCount >= 3 ? "late-coffee" : "tap-haptic"}
@@ -1000,6 +1014,12 @@ export default function InterviewRoom({
       <ContactsSidebar selectedId={interviewer.id} compact />
 
       <section className="chat-thread">
+        {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
+        {heardFlash ? (
+          <div className="they-heard" role="status">
+            THEY HEARD THAT
+          </div>
+        ) : null}
         <div className="thread-top">
         {stress.alert ? (
           <p className="copied-live">COPIED LIVE · RED ALERT · {stress.bpm} BPM</p>
@@ -1300,6 +1320,7 @@ export default function InterviewRoom({
             talkCut.lineId === speechReveal?.lineId ? (
               <TalkCutIn cut={talkCut.cut} direction={direction} />
             ) : null}
+            <HitLayer hits={hits} scraps={scraps} />
             </div>
 
             <div
@@ -1458,39 +1479,33 @@ export default function InterviewRoom({
           </>
         )}
       </section>
-      {stress.alert ? <div className="alert-vignette" aria-hidden /> : null}
-      <HitLayer hits={hits} scraps={scraps} />
-      {heardFlash ? (
-        <div className="they-heard" role="status">
-          THEY HEARD THAT
-        </div>
-      ) : null}
-      {shockCut ? (
-        <ShockCutscene
-          cut={shockCut}
-          onDone={() => {
-            setShockCut(null);
-            if (pendingTakeoverRef.current) startTakeover();
-          }}
-        />
-      ) : null}
-      {intrusion ? (
-        <IntrusionShow
-          takeover={intrusion}
-          interviewer={interviewer}
-          onSpeak={(line) => speak(line, { interviewerId: interviewer.id })}
-          onDone={() => {
-            cancel();
-            intrusionOpenRef.current = false;
-            setIntrusion(null);
-            const queued = pendingSpeechRef.current;
-            if (queued) {
-              pendingSpeechRef.current = null;
-              startPersonaSpeech(queued.lineId, queued.reply);
-            }
-          }}
-        />
-      ) : null}
     </main>
+    {shockCut ? (
+      <ShockCutscene
+        cut={shockCut}
+        onDone={() => {
+          setShockCut(null);
+          if (pendingTakeoverRef.current) startTakeover();
+        }}
+      />
+    ) : null}
+    {intrusion ? (
+      <IntrusionShow
+        takeover={intrusion}
+        interviewer={interviewer}
+        onSpeak={(line) => speak(line, { interviewerId: interviewer.id })}
+        onDone={() => {
+          cancel();
+          intrusionOpenRef.current = false;
+          setIntrusion(null);
+          const queued = pendingSpeechRef.current;
+          if (queued) {
+            pendingSpeechRef.current = null;
+            startPersonaSpeech(queued.lineId, queued.reply);
+          }
+        }}
+      />
+    ) : null}
+    </>
   );
 }
