@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { stillSrc } from "@/lib/cutscenes";
 import type { Interviewer } from "@/lib/interviewers";
 import type { DeskTakeover } from "@/lib/intrusions";
@@ -60,6 +61,11 @@ export default function IntrusionShow({
   }, [onDone]);
 
   useEffect(() => {
+    const failSafe = window.setTimeout(() => onDoneRef.current(), 24000);
+    return () => window.clearTimeout(failSafe);
+  }, []);
+
+  useEffect(() => {
     answerRef.current = answer;
     crumpleRef.current = crumple;
   }, [answer, crumple]);
@@ -75,6 +81,12 @@ export default function IntrusionShow({
     document.body.style.overflow = "hidden";
     document.documentElement.classList.add("desk-invaded");
     const blockKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onDoneRef.current();
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
     };
@@ -152,7 +164,7 @@ export default function IntrusionShow({
 
   const clock = `00:${String(Math.max(1, seconds)).padStart(2, "0")}`;
 
-  return (
+  return createPortal(
     <div
       className={`intrusion beat-${beat}${declineLocked ? " decline-fail" : ""}`}
       role="dialog"
@@ -269,6 +281,7 @@ export default function IntrusionShow({
           <span>Tap to crumple</span>
         </button>
       ) : null}
-    </div>
+    </div>,
+    document.body
   );
 }

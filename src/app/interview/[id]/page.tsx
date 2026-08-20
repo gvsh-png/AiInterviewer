@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getInterviewer, INTERVIEWERS } from "@/lib/interviewers";
+import HourGuard from "@/components/HourGuard";
 import InterviewRoom from "@/components/InterviewRoom";
 
 export function generateStaticParams() {
@@ -14,5 +15,9 @@ export default async function InterviewPage({
   const { id } = await params;
   const interviewer = getInterviewer(id);
   if (!interviewer) notFound();
-  return <InterviewRoom interviewer={interviewer} />;
+  return (
+    <HourGuard>
+      <InterviewRoom interviewer={interviewer} />
+    </HourGuard>
+  );
 }

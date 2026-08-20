@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { stillSrc, stillVideo } from "@/lib/cutscenes";
 import type { ShockCut } from "@/lib/shockCuts";
 
@@ -12,6 +13,7 @@ export default function ShockCutscene({
   onDone: () => void;
 }) {
   const [index, setIndex] = useState(0);
+  const onDoneRef = useRef(onDone);
   const shot = cut.shots[Math.min(index, cut.shots.length - 1)]!;
   const last = index >= cut.shots.length - 1;
   const videoUrl =
@@ -20,39 +22,51 @@ export default function ShockCutscene({
     (shot.still === "building" ? "/stills/intro.mp4" : null);
 
   useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
+  useEffect(() => {
     const hold = last ? 4200 : 3200;
     const timer = window.setTimeout(() => {
       if (!last) {
         setIndex((value) => value + 1);
         return;
       }
-      onDone();
+      onDoneRef.current();
     }, hold);
     return () => window.clearTimeout(timer);
-  }, [index, last, onDone, shot.line]);
+  }, [index, last, shot.line]);
 
   useEffect(() => {
-    const blockKey = (event: KeyboardEvent) => {
+    const failSafe = window.setTimeout(() => onDoneRef.current(), 14000);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onDoneRef.current();
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
     };
-    window.addEventListener("keydown", blockKey, true);
-    window.addEventListener("keyup", blockKey, true);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKey, true);
     document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", blockKey, true);
-      window.removeEventListener("keyup", blockKey, true);
+      window.clearTimeout(failSafe);
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", onKey, true);
       document.body.style.overflow = "";
     };
   }, []);
 
-  return (
+  return createPortal(
     <div
       className="shock-cut"
       role="dialog"
       aria-modal="true"
       aria-live="assertive"
-      onClick={(event) => event.stopPropagation()}
+      onClick={() => onDoneRef.current()}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className={`cutscene-still still-${shot.still} has-photo shock-still`}>
@@ -83,8 +97,9 @@ export default function ShockCutscene({
         <p className="app-kicker">{shot.kicker}</p>
         <h2>{cut.title}</h2>
         <p>{shot.line}</p>
-        <span>UNSKIPPABLE · {index + 1} / {cut.shots.length}</span>
+        <span>HOLD THE DESK · {index + 1} / {cut.shots.length}</span>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
