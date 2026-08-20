@@ -62,6 +62,12 @@ import {
   unlockScore,
 } from "@/lib/nightScore";
 import { matchShockCut, type ShockCut } from "@/lib/shockCuts";
+import {
+  deskTakeover,
+  matchDeskLine,
+  shouldForceDeskLine,
+  type DeskTakeover,
+} from "@/lib/intrusions";
 import { interviewStress } from "@/lib/stress";
 import {
   comboHit,
@@ -85,6 +91,7 @@ import {
 import ShockCutscene from "@/components/ShockCutscene";
 import HitLayer from "@/components/HitLayer";
 import TalkCutIn from "@/components/TalkCutIn";
+import IntrusionShow from "@/components/IntrusionShow";
 
 type Line = {
   id: string;
@@ -152,6 +159,7 @@ export default function InterviewRoom({
     cut: TalkCut;
     lineId: string;
   } | null>(null);
+  const [intrusion, setIntrusion] = useState<DeskTakeover | null>(null);
   const comboRef = useRef({ stance: "work" as Stance | null, count: 0 });
   const stampedRef = useRef(false);
   const alertedRef = useRef(false);
@@ -161,6 +169,13 @@ export default function InterviewRoom({
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
   const lockedRef = useRef(false);
   const autoStartRef = useRef(false);
+  const intrusionUsedRef = useRef(false);
+  const pendingTakeoverRef = useRef(false);
+  const intrusionOpenRef = useRef(false);
+  const pendingSpeechRef = useRef<{ lineId: string; reply: string } | null>(
+    null
+  );
+  const startTakeoverRef = useRef<() => void>(() => {});
 
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
@@ -225,8 +240,9 @@ export default function InterviewRoom({
         : null;
   const decided = Boolean(closedVerdict);
   const shocking = Boolean(shockCut);
+  const invading = Boolean(intrusion);
   const inputLocked =
-    busy || preparingSpeech || themTalking || decided || shocking;
+    busy || preparingSpeech || themTalking || decided || shocking || invading;
   const stances = meta.stances || [];
   const stress = interviewStress({
     round,
@@ -303,7 +319,26 @@ export default function InterviewRoom({
     playHitTone("alert");
     setInvertFlash(true);
     window.setTimeout(() => setInvertFlash(false), 180);
-  }, [stress.alert, stress.bpm, pushHit]);
+    if (
+      shouldForceDeskLine({
+        used: intrusionUsedRef.current,
+        afterShock: false,
+        alert: true,
+        turnCount: meta.turnCount,
+        decided,
+      }) &&
+      !shockCut
+    ) {
+      window.setTimeout(() => startTakeoverRef.current(), 780);
+    }
+  }, [
+    stress.alert,
+    stress.bpm,
+    pushHit,
+    meta.turnCount,
+    shockCut,
+    decided,
+  ]);
 
   useEffect(() => {
     if (!stress.alert) return;
@@ -329,7 +364,7 @@ export default function InterviewRoom({
   }, [closedVerdict, pushHit]);
 
   useEffect(() => {
-    if (!themTalking || shockCut || decided) return;
+    if (!themTalking || shockCut || intrusion || decided) return;
     const lineId = speechReveal?.lineId;
     if (!lineId) return;
     const cut = pickTalkCut(
@@ -348,6 +383,7 @@ export default function InterviewRoom({
   }, [
     themTalking,
     shockCut,
+    intrusion,
     decided,
     campaign.seed,
     interviewer.id,
@@ -485,10 +521,33 @@ export default function InterviewRoom({
     [speak, interviewer.id]
   );
 
+  const startTakeover = useCallback(() => {
+    if (intrusionUsedRef.current || decided) return;
+    intrusionUsedRef.current = true;
+    pendingTakeoverRef.current = false;
+    intrusionOpenRef.current = true;
+    cancel();
+    stopListen();
+    setTalkCut(null);
+    setIntrusion(deskTakeover(interviewer, appliedJob));
+  }, [cancel, decided, interviewer, appliedJob, stopListen]);
+
+  useEffect(() => {
+    startTakeoverRef.current = startTakeover;
+  }, [startTakeover]);
+
   const sendUserMessage = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy || preparingSpeech || themTalking || decided || shockCut) {
+      if (
+        !text ||
+        busy ||
+        preparingSpeech ||
+        themTalking ||
+        decided ||
+        shockCut ||
+        intrusion
+      ) {
         return;
       }
 
@@ -508,6 +567,10 @@ export default function InterviewRoom({
         setHeardFlash(true);
         playShockSting();
         window.setTimeout(() => setHeardFlash(false), 2400);
+        pendingTakeoverRef.current = true;
+      } else if (matchDeskLine(text) && !intrusionUsedRef.current) {
+        pendingTakeoverRef.current = true;
+        window.setTimeout(() => startTakeover(), 520);
       }
 
       const nextCombo =
@@ -656,7 +719,11 @@ export default function InterviewRoom({
             imageCaption,
           },
         ]);
-        startPersonaSpeech(themId, reply);
+        if (intrusionOpenRef.current || pendingTakeoverRef.current) {
+          pendingSpeechRef.current = { lineId: themId, reply };
+        } else {
+          startPersonaSpeech(themId, reply);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something broke";
         setError(message);
@@ -685,8 +752,10 @@ export default function InterviewRoom({
       run,
       contact,
       shockCut,
+      intrusion,
       pushHit,
       windowTurns.forceVerdict,
+      startTakeover,
     ]
   );
 
@@ -735,6 +804,11 @@ export default function InterviewRoom({
     alertedRef.current = false;
     talkUsedRef.current = [];
     setTalkCut(null);
+    setIntrusion(null);
+    intrusionUsedRef.current = false;
+    pendingTakeoverRef.current = false;
+    intrusionOpenRef.current = false;
+    pendingSpeechRef.current = null;
     void startPersonScore(interviewer.id);
     void unlockScore();
     updateContact(interviewer.id, {
@@ -799,6 +873,11 @@ export default function InterviewRoom({
     alertedRef.current = false;
     talkUsedRef.current = [];
     setTalkCut(null);
+    setIntrusion(null);
+    intrusionUsedRef.current = false;
+    pendingTakeoverRef.current = false;
+    intrusionOpenRef.current = false;
+    pendingSpeechRef.current = null;
     updateContact(interviewer.id, {
       verdict: undefined,
       preview: "New interview",
@@ -866,7 +945,7 @@ export default function InterviewRoom({
 
   return (
     <main
-      className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}`}
+      className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${invading ? " invading" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}`}
       style={themeStyle(interviewer.theme) as CSSProperties}
     >
       <ContactsSidebar selectedId={interviewer.id} compact />
@@ -910,7 +989,7 @@ export default function InterviewRoom({
                 type="button"
                 className="icon-button"
                 onClick={restart}
-                disabled={shocking}
+                disabled={shocking || invading}
                 aria-label="Reset conversation"
               >
                 <svg viewBox="0 0 24 24" aria-hidden>
@@ -1118,6 +1197,7 @@ export default function InterviewRoom({
             {talkCut &&
             themTalking &&
             !shockCut &&
+            !intrusion &&
             talkCut.lineId === speechReveal?.lineId ? (
               <TalkCutIn cut={talkCut.cut} direction={direction} />
             ) : null}
@@ -1235,7 +1315,30 @@ export default function InterviewRoom({
         </div>
       ) : null}
       {shockCut ? (
-        <ShockCutscene cut={shockCut} onDone={() => setShockCut(null)} />
+        <ShockCutscene
+          cut={shockCut}
+          onDone={() => {
+            setShockCut(null);
+            if (pendingTakeoverRef.current) startTakeover();
+          }}
+        />
+      ) : null}
+      {intrusion ? (
+        <IntrusionShow
+          takeover={intrusion}
+          interviewer={interviewer}
+          onSpeak={(line) => speak(line, { interviewerId: interviewer.id })}
+          onDone={() => {
+            cancel();
+            intrusionOpenRef.current = false;
+            setIntrusion(null);
+            const queued = pendingSpeechRef.current;
+            if (queued) {
+              pendingSpeechRef.current = null;
+              startPersonaSpeech(queued.lineId, queued.reply);
+            }
+          }}
+        />
       ) : null}
     </main>
   );
