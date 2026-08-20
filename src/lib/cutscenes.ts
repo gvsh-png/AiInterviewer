@@ -32,6 +32,19 @@ export function stillSrc(kind: StillKind) {
   return `/stills/${kind}.jpg`;
 }
 
+const NIGHT_STILLS: Record<string, StillKind> = {
+  "board-live": "building",
+  printers: "file",
+  cameras: "glass",
+  storm: "night",
+  "clerk-missing": "desk",
+  overtime: "hallway",
+};
+
+export function nightStill(nightId: string): StillKind {
+  return NIGHT_STILLS[nightId] || "night";
+}
+
 export function stillVideo(kind: StillKind) {
   if (kind === "night") return "/stills/intro.mp4";
   return null;

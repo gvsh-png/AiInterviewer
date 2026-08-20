@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Interviewer } from "@/lib/interviewers";
 import { stillSrc, stillVideo, type Shot } from "@/lib/cutscenes";
 import type { StoryRun } from "@/lib/storySeed";
-import { attachMotionPlate } from "@/lib/motionPlate";
 import {
   musicMuted,
   setMusicMuted,
@@ -32,18 +31,14 @@ export default function CutscenePlayer({
 }) {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(musicMuted);
-  const [motionKey, setMotionKey] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const list = shots.length > 0 ? shots : FALLBACK_SHOTS;
   const safeIndex = Math.min(index, list.length - 1);
   const shot = list[safeIndex]!;
   const last = safeIndex >= list.length - 1;
-  const shotKey = `${shot.still}:${shot.kicker}:${shot.line}:${safeIndex}`;
   const posterUrl = stillSrc(shot.still);
-  const hasMotion = motionKey === shotKey;
-  const fallbackVideo = !hasMotion ? stillVideo(shot.still) : null;
+  const fallbackVideo = stillVideo(shot.still);
 
   const stopAudio = () => {
     const audio = audioRef.current;
@@ -65,66 +60,6 @@ export default function CutscenePlayer({
     }
     return () => stopNightScore();
   }, [person, run]);
-
-  useEffect(() => {
-    let gone = false;
-    const canvas = canvasRef.current;
-    const unique = `${Date.now().toString(36)}-${safeIndex}-${Math.random()
-      .toString(36)
-      .slice(2, 7)}`;
-    const body = {
-      still: shot.still,
-      nightId: run?.night.id,
-      night: run?.night.title,
-      premise: run?.premise.title,
-      throughline: run?.throughline.echo,
-      kicker: shot.kicker,
-      line: shot.line,
-      personName: person?.name,
-    };
-
-    const fetchStill = (variant: "a" | "b") =>
-      fetch("/api/story-still", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...body,
-          unique: `${unique}-${variant}`,
-          variant,
-        }),
-      }).then(async (res) => {
-        const data = (await res.json()) as { src?: string; source?: string };
-        return data.source === "openrouter" && data.src ? data.src : null;
-      });
-
-    const play = async () => {
-      const frames = (
-        await Promise.allSettled([fetchStill("a"), fetchStill("b")])
-      )
-        .map((item) =>
-          item.status === "fulfilled" ? item.value : null
-        )
-        .filter((src): src is string => Boolean(src));
-      if (gone || !canvas || frames.length === 0) return;
-      const stop = attachMotionPlate(canvas, frames);
-      setMotionKey(shotKey);
-      return () => stop();
-    };
-
-    let stopPlate: (() => void) | undefined;
-    void play().then((stop) => {
-      if (gone) {
-        stop?.();
-        return;
-      }
-      stopPlate = stop;
-    });
-
-    return () => {
-      gone = true;
-      stopPlate?.();
-    };
-  }, [shotKey, shot.still, shot.line, shot.kicker, run, person?.name, safeIndex]);
 
   useEffect(() => {
     let gone = false;
@@ -198,7 +133,7 @@ export default function CutscenePlayer({
       role="presentation"
     >
       <div className={`cutscene-still still-${shot.still} has-photo`}>
-        {fallbackVideo && !hasMotion ? (
+        {fallbackVideo ? (
           <video
             key={fallbackVideo}
             className="cutscene-photo"
@@ -212,22 +147,17 @@ export default function CutscenePlayer({
             disablePictureInPicture
             disableRemotePlayback
           />
-        ) : !hasMotion ? (
+        ) : (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element -- baked poster until the new plate lands */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- baked campaign plates */}
             <img
-              className="cutscene-photo"
+              className="cutscene-photo generated"
               src={posterUrl}
               alt=""
               draggable={false}
             />
           </>
-        ) : null}
-        <canvas
-          ref={canvasRef}
-          className={`cutscene-photo generated ${hasMotion ? "live" : ""}`}
-          aria-hidden
-        />
+        )}
         {shot.still === "portrait" && person ? (
           <PersonaAvatar interviewer={person} size="lg" />
         ) : null}

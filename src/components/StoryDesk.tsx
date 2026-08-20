@@ -43,6 +43,8 @@ import {
   assembleShots,
   cacheKey,
   ensureOpeningNight,
+  nightStill,
+  stillSrc,
   type CutsceneContext,
   type CutsceneKind,
   type Shot,
@@ -543,32 +545,7 @@ function StoryKindCard({
   hook: string;
   onPick: (nightId: string) => void;
 }) {
-  const [src, setSrc] = useState("/stills/night.jpg");
-  useEffect(() => {
-    let gone = false;
-    fetch("/api/story-still", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        still: "night",
-        nightId,
-        kicker,
-        line: hook,
-        unique: `${nightId}-${Date.now().toString(36)}`,
-        variant: "a",
-      }),
-    })
-      .then(async (res) => {
-        const data = (await res.json()) as { src?: string };
-        if (!gone && data.src) setSrc(data.src);
-      })
-      .catch(() => {
-        /* baked night still */
-      });
-    return () => {
-      gone = true;
-    };
-  }, [nightId, kicker, hook]);
+  const src = stillSrc(nightStill(nightId));
 
   return (
     <button
@@ -576,7 +553,7 @@ function StoryKindCard({
       className="story-kind-card"
       onClick={() => onPick(nightId)}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- generated story stills */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- baked night plates */}
       <img src={src} alt="" draggable={false} />
       <span className="app-kicker">{kicker}</span>
       <strong>{title}</strong>

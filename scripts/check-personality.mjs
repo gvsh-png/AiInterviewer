@@ -41,7 +41,9 @@ import {
   STILL_KINDS,
   assembleShots,
   ensureOpeningNight,
+  nightStill,
   stillPrompt,
+  stillSrc,
   stillVideo,
   validateShots,
 } from "../src/lib/cutscenes.ts";
@@ -397,6 +399,9 @@ const uniquePlate = stillPrompt({
 });
 assert.match(uniquePlate, /plate-77/);
 assert.match(uniquePlate, /different angle/i);
+assert.equal(nightStill("printers"), "file");
+assert.equal(nightStill("unknown-night"), "night");
+assert.equal(stillSrc("file"), "/stills/file.jpg");
 
 assert.ok(SHOCK_CUTS.length >= 6);
 assert.equal(
