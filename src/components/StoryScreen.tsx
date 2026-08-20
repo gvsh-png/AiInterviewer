@@ -53,7 +53,7 @@ export default function StoryScreen() {
   }
 
   return (
-    <main className="messenger-shell story-shell">
+    <main className="messenger-shell story-shell fun-night-tint" data-fun="night-tint">
       <ContactsSidebar compact />
       <section className="story-pane">
         <header className="thread-header">
@@ -63,7 +63,7 @@ export default function StoryScreen() {
             </svg>
           </Link>
           <div className="thread-person">
-            <h1>Story</h1>
+            <h1 className="fun-letter" data-fun="letter-type">Story</h1>
             <p>{subtitle}</p>
           </div>
         </header>

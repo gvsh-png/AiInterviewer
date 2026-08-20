@@ -13,6 +13,7 @@ import {
   stopNightScore,
 } from "@/lib/nightScore";
 import PersonaAvatar from "@/components/PersonaAvatar";
+import { playFun } from "@/lib/funKit";
 
 export default function CutscenePlayer({
   shots,
@@ -161,6 +162,7 @@ export default function CutscenePlayer({
 
   const advance = () => {
     stopAudio();
+    playFun("elevator-ding");
     onAdvance?.();
     if (!last) {
       setIndex((value) => value + 1);
@@ -171,6 +173,7 @@ export default function CutscenePlayer({
 
   const skip = () => {
     stopAudio();
+    playFun("story-tear");
     onAdvance?.();
     onComplete();
   };

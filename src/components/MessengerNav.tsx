@@ -1,17 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import type { MouseEvent } from "react";
+import { deskClick, playFun } from "@/lib/funKit";
+import { funRipple } from "@/components/FunLayer";
 
 type MessengerNavProps = {
   active: "chats" | "story" | "file" | "settings";
 };
 
 export default function MessengerNav({ active }: MessengerNavProps) {
+  const go = (event: MouseEvent<HTMLAnchorElement>) => {
+    deskClick("tab-tick");
+    deskClick("nav-haptic");
+    playFun("ink-ripple");
+    funRipple(event);
+  };
+
   return (
-    <nav className="mobile-tabbar" aria-label="Primary navigation">
+    <nav className="mobile-tabbar fun-tab-ink" aria-label="Primary navigation" data-fun="tab-ink">
       <Link
         href="/"
         className={`tabbar-item ${active === "chats" ? "active" : ""}`}
+        data-fun="tab-tick"
+        onClick={go}
       >
         <svg viewBox="0 0 24 24" aria-hidden>
           <path d="M4 5.5h16v11H8l-4 3v-14Z" />
@@ -21,6 +33,8 @@ export default function MessengerNav({ active }: MessengerNavProps) {
       <Link
         href="/story"
         className={`tabbar-item ${active === "story" ? "active" : ""}`}
+        data-fun="nav-haptic"
+        onClick={go}
       >
         <svg viewBox="0 0 24 24" aria-hidden>
           <path d="M5 4h11l3 3v13H5Z" />
@@ -31,6 +45,7 @@ export default function MessengerNav({ active }: MessengerNavProps) {
       <Link
         href="/file"
         className={`tabbar-item ${active === "file" ? "active" : ""}`}
+        onClick={go}
       >
         <svg viewBox="0 0 24 24" aria-hidden>
           <path d="M4 7.5h16v12H4Z" />
@@ -41,6 +56,7 @@ export default function MessengerNav({ active }: MessengerNavProps) {
       <Link
         href="/settings"
         className={`tabbar-item ${active === "settings" ? "active" : ""}`}
+        onClick={go}
       >
         <svg viewBox="0 0 24 24" aria-hidden>
           <circle cx="12" cy="12" r="3" />

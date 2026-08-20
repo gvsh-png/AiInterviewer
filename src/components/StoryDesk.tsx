@@ -314,7 +314,7 @@ export default function StoryDesk({ playHere = false }: Props) {
 
   if (!campaign.seed) {
     return (
-      <section className="story-desk">
+      <section className="story-desk fun-night-tint" data-fun="night-tint">
         <p className="story-beat">The night is being filed…</p>
       </section>
     );
@@ -358,7 +358,7 @@ export default function StoryDesk({ playHere = false }: Props) {
   }
 
   return (
-    <section className="story-desk">
+    <section className="story-desk fun-night-tint" data-fun="night-tint">
       <div className="story-copy">
         <p className="app-kicker">Campaign</p>
         <h2>{currentRoundLabel(campaign, contacts)}</h2>

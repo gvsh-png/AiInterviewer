@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import FunLayer from "@/components/FunLayer";
 import "./globals.css";
 
 const display = Fraunces({
@@ -45,7 +46,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        <FunLayer />
+        {children}
+      </body>
     </html>
   );
 }

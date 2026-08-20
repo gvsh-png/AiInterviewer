@@ -8,6 +8,8 @@ import { clearAllConversations } from "@/lib/chatStorage";
 import { clearAllContacts } from "@/lib/contacts";
 import { clearCampaign } from "@/lib/campaign";
 import { clearFileCabinet } from "@/lib/fileCabinet";
+import FunControls from "@/components/FunControls";
+import { deskClick, playFun } from "@/lib/funKit";
 import {
   getThemePreference,
   setThemePreference,
@@ -46,6 +48,8 @@ export default function SettingsScreen() {
   );
 
   const chooseTheme = (next: ThemePreference) => {
+    deskClick("toggle-click");
+    playFun("theme-wipe");
     setThemePreference(next);
   };
 
@@ -54,6 +58,7 @@ export default function SettingsScreen() {
       "Delete every conversation and reset the story?"
     );
     if (!confirmed) return;
+    deskClick("paper-tear");
     clearAllConversations();
     clearAllContacts();
     clearCampaign();
@@ -105,7 +110,9 @@ export default function SettingsScreen() {
             </div>
           </section>
 
-          <section className="settings-group danger-zone">
+          <FunControls />
+
+          <section className="settings-group danger-zone" data-fun="reduce-motion">
             <h2>Conversation data</h2>
             <p className="settings-description">
               Your chats, contacts, story, and file notes are stored only in
@@ -114,6 +121,7 @@ export default function SettingsScreen() {
             <button
               type="button"
               className="reset-button"
+              data-fun="paper-tear"
               onClick={resetProgress}
             >
               Reset all progress
