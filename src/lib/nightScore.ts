@@ -174,6 +174,7 @@ let pendingPerson: InterviewerId | null = null;
 let beatTimer: number | null = null;
 let beatBpm = 72;
 let fxCtx: AudioContext | null = null;
+let ringNodes: AudioNode[] = [];
 
 export function musicMuted() {
   return muted;
@@ -286,6 +287,105 @@ export function playShockSting() {
     osc.start(t);
     osc.stop(t + 0.75);
   }
+}
+
+export function duckNightScore(on: boolean) {
+  if (!handle || muted) return;
+  handle.master.gain.setTargetAtTime(
+    on ? currentVolume * 0.1 : currentVolume,
+    handle.ctx.currentTime,
+    0.16
+  );
+}
+
+export function stopDeskRing() {
+  for (const node of ringNodes) {
+    try {
+      if ("stop" in node && typeof (node as OscillatorNode).stop === "function") {
+        (node as OscillatorNode).stop();
+      }
+      node.disconnect();
+    } catch {
+      /* already closed */
+    }
+  }
+  ringNodes = [];
+}
+
+export function playDeskRing() {
+  stopDeskRing();
+  void (async () => {
+    if (muted) return;
+    const ctx = await getFxCtx();
+    if (!ctx) return;
+    const master = ctx.createGain();
+    master.gain.value = 0.11;
+    master.connect(ctx.destination);
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    o1.type = "sine";
+    o2.type = "sine";
+    o1.frequency.value = 440;
+    o2.frequency.value = 480;
+    const gate = ctx.createGain();
+    gate.gain.value = 0;
+    o1.connect(gate);
+    o2.connect(gate);
+    gate.connect(master);
+    o1.start();
+    o2.start();
+    const now = ctx.currentTime;
+    for (let i = 0; i < 36; i += 1) {
+      const t = now + i * 0.72;
+      gate.gain.setValueAtTime(0.0001, t);
+      gate.gain.exponentialRampToValueAtTime(1, t + 0.018);
+      gate.gain.setValueAtTime(1, t + 0.4);
+      gate.gain.exponentialRampToValueAtTime(0.0001, t + 0.46);
+    }
+    ringNodes = [o1, o2, gate, master];
+  })();
+}
+
+export function playCallAnswer() {
+  void (async () => {
+    if (muted) return;
+    const ctx = await getFxCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    blip(ctx, 180, "square", t, 0.04, 0.06);
+    blip(ctx, 720, "sine", t + 0.05, 0.12, 0.05);
+  })();
+}
+
+export function playPaperDump() {
+  void (async () => {
+    if (muted) return;
+    const ctx = await getFxCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const noise = ctx.createBufferSource();
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.35, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1800;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    noise.start(t);
+    noise.stop(t + 0.35);
+    blip(ctx, 90, "triangle", t, 0.18, 0.1);
+    blip(ctx, 140, "square", t + 0.04, 0.08, 0.05);
+  })();
 }
 
 type FxKind = "work" | "probe" | "soften" | "combo" | "stamp" | "alert" | "send";

@@ -75,6 +75,12 @@ import {
   stanceHit,
   verdictHit,
 } from "../src/lib/hits.ts";
+import {
+  DESK_LINE_CUES,
+  deskTakeover,
+  matchDeskLine,
+  shouldForceDeskLine,
+} from "../src/lib/intrusions.ts";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -488,5 +494,59 @@ assert.equal(
   ),
   false
 );
+
+assert.equal(matchDeskLine("look at me while the printers run"), true);
+assert.equal(matchDeskLine("pick up the desk line"), true);
+assert.equal(matchDeskLine("I shipped three tickets this morning"), false);
+assert.equal(
+  shouldForceDeskLine({
+    used: false,
+    afterShock: true,
+    alert: false,
+    turnCount: 1,
+    decided: false,
+  }),
+  true
+);
+assert.equal(
+  shouldForceDeskLine({
+    used: true,
+    afterShock: true,
+    alert: true,
+    turnCount: 4,
+    decided: false,
+  }),
+  false
+);
+assert.equal(
+  shouldForceDeskLine({
+    used: false,
+    afterShock: false,
+    alert: true,
+    turnCount: 1,
+    decided: false,
+  }),
+  false
+);
+assert.equal(
+  shouldForceDeskLine({
+    used: false,
+    afterShock: false,
+    alert: true,
+    turnCount: 2,
+    decided: false,
+  }),
+  true
+);
+const takeoverText = INTERVIEWERS.map((person) => {
+  const item = deskTakeover(person, person.job);
+  assert.equal(item.callerName, person.name);
+  assert.equal(item.callerJob, person.job);
+  assert.match(item.memoTitle, new RegExp(person.job.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  return [item.callLine, item.possessLine, item.typedLine, item.memoBody, item.declineFail, item.ringLabel].join(" ");
+}).join("\n");
+assert.equal(/twist|stalker|cult/i.test(takeoverText), false);
+assert.equal(/twist|stalker|cult/i.test(DESK_LINE_CUES.join(" ")), false);
+assert.ok(DESK_LINE_CUES.length >= 12);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);
