@@ -217,17 +217,17 @@ function FunDesk() {
       <div className="fun-grain" data-fun="grain-alive" />
       <div className="fun-scan" data-fun="scan-alive" />
       <div className="fun-dust home" data-fun="home-dust">
-        {Array.from({ length: 18 }, (_, index) => (
+        {Array.from({ length: 8 }, (_, index) => (
           <i key={index} style={{ left: `${(index * 13) % 100}%`, animationDelay: `${index * 0.4}s` }} />
         ))}
       </div>
       <div className="fun-dust desk" data-fun="desk-dust">
-        {Array.from({ length: 12 }, (_, index) => (
+        {Array.from({ length: 6 }, (_, index) => (
           <i key={index} style={{ left: `${(index * 17) % 100}%`, animationDelay: `${index * 0.55}s` }} />
         ))}
       </div>
       <div className="fun-rain" data-fun="glass-rain">
-        {Array.from({ length: 28 }, (_, index) => (
+        {Array.from({ length: 10 }, (_, index) => (
           <i key={index} style={{ left: `${(index * 9) % 100}%`, animationDelay: `${(index % 7) * 0.2}s` }} />
         ))}
       </div>

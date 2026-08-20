@@ -1157,7 +1157,7 @@ export default function InterviewRoom({
                   const firstYou =
                     line.role === "you" &&
                     lines.find((item) => item.role === "you")?.id === line.id;
-                  const folded = line.text.length > 140;
+                  const folded = (line.text || "").length > 140;
                   return (
                   <div
                     key={line.id}
@@ -1166,7 +1166,7 @@ export default function InterviewRoom({
                     onDoubleClick={() => {
                       pinLine({
                         id: line.id,
-                        text: line.text.slice(0, 180),
+                        text: (line.text || "").slice(0, 180),
                         name: firstName,
                         at: Date.now(),
                       });

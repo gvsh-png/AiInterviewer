@@ -92,6 +92,8 @@ svg {
 }
 
 .messenger-shell {
+  position: relative;
+  z-index: 2;
   width: 100%;
   min-height: 100dvh;
   display: grid;
@@ -1909,6 +1911,8 @@ a.text-button {
 }
 
 .login-room {
+  position: relative;
+  z-index: 2;
   min-height: 100dvh;
   display: grid;
   place-items: center;
@@ -3336,20 +3340,6 @@ html.fun-desk ::selection {
   color: var(--text);
 }
 
-html.fun-desk * {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--sulfur) 55%, var(--border)) transparent;
-}
-
-html.fun-desk *::-webkit-scrollbar {
-  width: 8px;
-}
-
-html.fun-desk *::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--sulfur) 40%, var(--border));
-  border-radius: 99px;
-}
-
 html.fun-still .fun-layer i,
 html.fun-still .fun-rain,
 html.fun-still .fun-dust,
@@ -3362,8 +3352,14 @@ html.fun-still .call-ring {
   pointer-events: none;
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 0;
   overflow: hidden;
+}
+
+body:has(.thread-shell) .fun-scan,
+body:has(.thread-shell) .fun-dust,
+body:has(.thread-shell) .fun-rain {
+  opacity: 0;
 }
 
 .fun-layer button {
@@ -3389,7 +3385,7 @@ html.fun-still .call-ring {
     rgba(255, 255, 255, 0.03) 3px 4px
   );
   animation: fun-scan 8s linear infinite;
-  opacity: 0.35;
+  opacity: 0.12;
 }
 
 .fun-dust i,
