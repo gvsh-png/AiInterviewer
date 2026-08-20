@@ -81,6 +81,14 @@ import {
   matchDeskLine,
   shouldForceDeskLine,
 } from "../src/lib/intrusions.ts";
+import {
+  CHAIR_LINES,
+  FUN_FEATURES,
+  awardLine,
+  funFeatureIds,
+} from "../src/lib/funKit.ts";
+import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 assert.equal(derivePhase(0, 0), "strict");
 assert.equal(derivePhase(3, 0), "cracking");
@@ -548,5 +556,20 @@ const takeoverText = INTERVIEWERS.map((person) => {
 assert.equal(/twist|stalker|cult/i.test(takeoverText), false);
 assert.equal(/twist|stalker|cult/i.test(DESK_LINE_CUES.join(" ")), false);
 assert.ok(DESK_LINE_CUES.length >= 12);
+
+assert.equal(FUN_FEATURES.length, 100);
+assert.equal(new Set(funFeatureIds()).size, 100);
+const funCopy = FUN_FEATURES.map((item) => `${item.title} ${item.detail}`).join("\n");
+assert.equal(/twist|stalker|cult/i.test(funCopy), false);
+assert.equal(/twist|stalker|cult/i.test(CHAIR_LINES.join(" ")), false);
+assert.equal(/twist|stalker|cult/i.test(awardLine("ticker-tape")), false);
+const wired = execSync("rg -l . src --glob '!funKit.ts'", { encoding: "utf8" })
+  .trim()
+  .split("\n")
+  .map((file) => readFileSync(file, "utf8"))
+  .join("\n");
+for (const id of funFeatureIds()) {
+  assert.ok(wired.includes(id), `fun feature ${id} is not wired outside the catalog`);
+}
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);

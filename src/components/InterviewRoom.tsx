@@ -68,6 +68,13 @@ import {
   shouldForceDeskLine,
   type DeskTakeover,
 } from "@/lib/intrusions";
+import {
+  collectStamp,
+  deskClick,
+  grantAward,
+  pinLine,
+  playFun,
+} from "@/lib/funKit";
 import { interviewStress } from "@/lib/stress";
 import {
   comboHit,
@@ -99,6 +106,8 @@ type Line = {
   text: string;
   imageUrl?: string;
   imageCaption?: string;
+  whisper?: boolean;
+  stanceInk?: Stance;
 };
 
 type SpeechReveal = {
@@ -160,6 +169,9 @@ export default function InterviewRoom({
     lineId: string;
   } | null>(null);
   const [intrusion, setIntrusion] = useState<DeskTakeover | null>(null);
+  const [crumpled, setCrumpled] = useState<string[]>([]);
+  const [whisperArm, setWhisperArm] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const comboRef = useRef({ stance: "work" as Stance | null, count: 0 });
   const stampedRef = useRef(false);
   const alertedRef = useRef(false);
@@ -176,6 +188,7 @@ export default function InterviewRoom({
     null
   );
   const startTakeoverRef = useRef<() => void>(() => {});
+  const whisperTimer = useRef<number | null>(null);
 
   const { supported: ttsOk, speaking, preparingSpeech, speak, prefetch, cancel } =
     useSpeechSynthesis();
@@ -304,6 +317,19 @@ export default function InterviewRoom({
     setScoreBpm(stress.bpm);
   }, [stress.bpm]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.funMood = scoreMood;
+    root.dataset.funAlert = stress.alert ? "1" : "";
+    root.dataset.funLast = lastQuestion ? "1" : "";
+    root.dataset.funCoffee = meta.turnCount >= 3 ? "1" : "";
+    root.dataset.funCopy = String(copies);
+  }, [scoreMood, stress.alert, lastQuestion, meta.turnCount, copies]);
+
+  useEffect(() => {
+    if (scoreMood === "horror") playFun("rain-hush");
+  }, [scoreMood]);
+
   const pushHit = useCallback((partial: Omit<HitPop, "id">) => {
     const hit: HitPop = { ...partial, id: uid() };
     setHits((prev) => [...prev.slice(-2), hit]);
@@ -358,10 +384,18 @@ export default function InterviewRoom({
     setScraps(makeScraps(closedVerdict.decision === "obsessed" ? 28 : 18));
     setPunch(true);
     setInvertFlash(true);
+    collectStamp(closedVerdict.decision.toUpperCase());
+    playFun("door-close");
+    if (closedVerdict.decision === "hire") playFun("hire-confetti");
+    if (closedVerdict.decision === "reject") playFun("reject-redact");
+    if (closedVerdict.decision === "obsessed") playFun("heart-stamp");
+    if (closedVerdict.decision === "callback") playFun("callback-ring");
+    const hires = done.filter((item) => item.verdict?.decision === "hire").length;
+    if (closedVerdict.decision === "hire" && hires + 1 >= 3) playFun("ticker-tape");
     window.setTimeout(() => setPunch(false), 220);
     window.setTimeout(() => setInvertFlash(false), 200);
     window.setTimeout(() => setScraps([]), 2200);
-  }, [closedVerdict, pushHit]);
+  }, [closedVerdict, pushHit, done]);
 
   useEffect(() => {
     if (!themTalking || shockCut || intrusion || decided) return;
@@ -579,6 +613,12 @@ export default function InterviewRoom({
       setCombo(nextCombo);
       setCopies((value) => value + 1);
       playHitTone("send");
+      playFun("send-whoosh");
+      playFun("bubble-pop");
+      if (lines.filter((item) => item.role === "you").length === 0) {
+        playFun("gold-clip");
+        grantAward("gold-clip");
+      }
       playHitTone(stance, nextCombo);
       pushHit(stanceHit(stance));
       const chain = comboHit(nextCombo);
@@ -600,7 +640,11 @@ export default function InterviewRoom({
       setPunch(true);
       window.setTimeout(() => setPunch(false), 180);
 
-      const nextLines: Line[] = [...lines, { id: uid(), role: "you", text }];
+      const nextLines: Line[] = [
+        ...lines,
+        { id: uid(), role: "you", text, whisper: whisperArm, stanceInk: stance },
+      ];
+      setWhisperArm(false);
       setLines(nextLines);
 
       const nextMessages: ChatMessage[] = [
@@ -756,6 +800,7 @@ export default function InterviewRoom({
       pushHit,
       windowTurns.forceVerdict,
       startTakeover,
+      whisperArm,
     ]
   );
 
@@ -840,6 +885,8 @@ export default function InterviewRoom({
   const restart = () => {
     cancel();
     stopListen();
+    playFun("retry-shake");
+    deskClick("paper-tear");
     setBusy(false);
     setStarted(false);
     setLines([]);
@@ -891,6 +938,7 @@ export default function InterviewRoom({
   const logout = async () => {
     cancel();
     stopListen();
+    playFun("logout-slam");
     await fetch("/api/auth", { method: "DELETE" });
     router.replace("/login");
     router.refresh();
@@ -945,7 +993,8 @@ export default function InterviewRoom({
 
   return (
     <main
-      className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${invading ? " invading" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}`}
+      className={`messenger-shell thread-shell themed-hour mood-${scoreMood}${stress.alert ? " alert-red" : ""}${shocking ? " shocking" : ""}${invading ? " invading" : ""}${punch ? " punch" : ""}${invertFlash ? " invert-flash" : ""}${stress.stress >= 48 ? " chroma" : ""}${themTalking ? " them-talking" : ""}${lastQuestion ? " fun-lights" : ""}${meta.turnCount >= 3 ? " fun-coffee" : ""}`}
+      data-fun={lastQuestion ? "lights-out" : meta.turnCount >= 3 ? "late-coffee" : "tap-haptic"}
       style={themeStyle(interviewer.theme) as CSSProperties}
     >
       <ContactsSidebar selectedId={interviewer.id} compact />
@@ -955,7 +1004,11 @@ export default function InterviewRoom({
         {stress.alert ? (
           <p className="copied-live">COPIED LIVE · RED ALERT · {stress.bpm} BPM</p>
         ) : null}
-        <header className="thread-header">
+        <header
+          className="thread-header fun-sheen"
+          data-fun="flashlight"
+          onDoubleClick={() => playFun("flashlight")}
+        >
           <Link href="/" className="mobile-back" aria-label="Back to chats">
             <svg viewBox="0 0 24 24" aria-hidden>
               <path d="m15 5-7 7 7 7" />
@@ -1028,7 +1081,9 @@ export default function InterviewRoom({
             <i style={{ width: `${stress.stress}%` }} />
           </div>
           <span className="stress-hour">
-            <span className="stress-copy">{copySerial(copies)}</span>
+            <span className="stress-copy" data-fun="copy-badge">
+              {copySerial(copies)}
+            </span>
             <span>
               {combo >= 2
                 ? `${combo}×`
@@ -1075,7 +1130,7 @@ export default function InterviewRoom({
           <>
             <div className="transcript-stage">
             <div className="transcript" ref={scrollRef}>
-              <div className="hour-brief">
+              <div className="hour-brief fun-sticky-brief" data-fun="sticky-brief">
                 <p className="app-kicker hour-brief-kicker">
                   <span>
                     Hour {round} of {totalRounds()}
@@ -1098,10 +1153,50 @@ export default function InterviewRoom({
               <div className="conversation-date">Today</div>
               {lines
                 .filter((line) => line.id !== pendingSpeechLineId)
-                .map((line) => (
+                .map((line) => {
+                  const firstYou =
+                    line.role === "you" &&
+                    lines.find((item) => item.role === "you")?.id === line.id;
+                  const folded = line.text.length > 140;
+                  return (
                   <div
                     key={line.id}
-                    className={`message-row ${line.role === "them" ? "incoming" : "outgoing"}${stress.alert ? " jitter" : ""}${line.role === "you" ? " slam-out" : " slam-in"}`}
+                    className={`message-row ${line.role === "them" ? "incoming" : "outgoing"}${stress.alert ? " jitter" : ""}${line.role === "you" ? " slam-out" : " slam-in"}${line.whisper ? " fun-whisper" : ""}${crumpled.includes(line.id) ? " fun-crumpled" : ""}${line.role === "them" && meta.phase !== "strict" ? " fun-leak" : ""}`}
+                    data-fun={line.role === "you" ? "bubble-fly" : "leak-jitter"}
+                    onDoubleClick={() => {
+                      pinLine({
+                        id: line.id,
+                        text: line.text.slice(0, 180),
+                        name: firstName,
+                        at: Date.now(),
+                      });
+                      setPinnedIds((prev) =>
+                        prev.includes(line.id)
+                          ? prev.filter((id) => id !== line.id)
+                          : [...prev, line.id]
+                      );
+                      playFun("pin-clip");
+                    }}
+                    onTouchEnd={(event) => {
+                      if (line.role !== "you") return;
+                      const touch = event.changedTouches[0];
+                      if (!touch) return;
+                      const start = Number(
+                        (event.currentTarget as HTMLElement).dataset.x || 0
+                      );
+                      if (start && touch.clientX - start < -70) {
+                        setCrumpled((prev) => [...prev, line.id]);
+                        playFun("crumple-swipe");
+                      }
+                    }}
+                    onTouchStart={(event) => {
+                      const touch = event.touches[0];
+                      if (touch) {
+                        (event.currentTarget as HTMLElement).dataset.x = String(
+                          touch.clientX
+                        );
+                      }
+                    }}
                   >
                     {line.role === "them" ? (
                       <PersonaAvatar
@@ -1111,7 +1206,10 @@ export default function InterviewRoom({
                       />
                     ) : null}
                     <div className="message-content">
-                      <div className="message-bubble">
+                      <div
+                        className={`message-bubble${folded ? " fun-fold" : ""}${line.stanceInk ? ` stance-${line.stanceInk}` : ""}${firstYou ? " fun-gold" : ""}${pinnedIds.includes(line.id) ? " fun-pinned" : ""}`}
+                        data-fun={firstYou ? "gold-clip" : folded ? "fold-mark" : "stance-tint"}
+                      >
                         {line.role === "them" &&
                         isLineRevealing(line.id) &&
                         speechReveal ? (
@@ -1128,13 +1226,13 @@ export default function InterviewRoom({
                           <p className="speech-text">{line.text}</p>
                         )}
                         {line.imageUrl ? (
-                          <figure className="speech-photo">
+                          <figure className="speech-photo fun-polaroid-tilt" data-fun="polaroid-tilt">
                             <img
                               src={line.imageUrl}
                               alt={line.imageCaption || `${firstName} shared a photo`}
                               className="speech-photo-img"
                             />
-                            <figcaption>
+                            <figcaption data-fun="hand-caption" className="fun-hand">
                               {line.imageCaption || "Shared photo"}
                             </figcaption>
                           </figure>
@@ -1142,7 +1240,8 @@ export default function InterviewRoom({
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+                })}
               {interim ? (
                 <div className="message-row outgoing interim">
                   <div className="message-content">
@@ -1170,7 +1269,7 @@ export default function InterviewRoom({
                 </div>
               ) : null}
               {callbackLetter && !decided ? (
-                <div className="verdict-card callback-card slam">
+                <div className="verdict-card callback-card slam fun-ring" data-fun="callback-ring">
                   <p className="app-kicker">{verdictLabel(callbackLetter.decision)}</p>
                   <h3>{verdictHeadline(callbackLetter.decision)}</h3>
                   <p>{callbackLetter.letter}</p>
@@ -1181,7 +1280,7 @@ export default function InterviewRoom({
                 </div>
               ) : null}
               {activeVerdict && !themTalking && !showThinking ? (
-                <div className="verdict-card slam">
+                <div className="verdict-card slam fun-letter" data-fun="letter-type">
                   <p className="app-kicker">{verdictLabel(activeVerdict.decision)}</p>
                   <h3>{verdictHeadline(activeVerdict.decision)}</h3>
                   <p>{activeVerdict.letter}</p>
@@ -1204,11 +1303,30 @@ export default function InterviewRoom({
             </div>
 
             <div
-              className={`composer${
+              className={`composer fun-sticky${
                 meta.turnCount >= windowTurns.forceVerdict - 1 && !decided
                   ? " last-call"
                   : ""
               }${combo >= 3 ? " hot-combo" : ""}`}
+              data-fun="sticky-tab"
+              onTouchEnd={(event) => {
+                const start = Number(
+                  (event.currentTarget as HTMLElement).dataset.y || 0
+                );
+                const touch = event.changedTouches[0];
+                if (start && touch && touch.clientY - start > 40) {
+                  setNotesOpen(true);
+                  playFun("note-swipe");
+                }
+              }}
+              onTouchStart={(event) => {
+                const touch = event.touches[0];
+                if (touch) {
+                  (event.currentTarget as HTMLElement).dataset.y = String(
+                    touch.clientY
+                  );
+                }
+              }}
             >
               {notesOpen ? (
                 <div className="note-sheet">
@@ -1216,7 +1334,11 @@ export default function InterviewRoom({
                   <NightNote interviewerId={interviewer.id} compact />
                 </div>
               ) : null}
-              {error ? <p className="composer-error">{error}</p> : null}
+              {error ? (
+                <p className="composer-error fun-error" data-fun="error-stamp">
+                  {error}
+                </p>
+              ) : null}
               {activeVerdict ? (
                 <div className="composer-row story-continue">
                   <Link href="/story" className="start-chat-button">
@@ -1239,7 +1361,11 @@ export default function InterviewRoom({
                         role="radio"
                         aria-checked={stance === item.id}
                         className={`stance-chip ${stance === item.id ? "active" : ""}`}
-                        onClick={() => setStance(item.id)}
+                        data-fun="stance-tick"
+                        onClick={() => {
+                          setStance(item.id);
+                          deskClick("stance-tick");
+                        }}
                         disabled={inputLocked}
                         title={item.hint}
                       >
@@ -1254,12 +1380,17 @@ export default function InterviewRoom({
                     <button
                       type="button"
                       className={`mic-button ${listening ? "active" : ""}`}
+                      data-fun="mic-bars"
                       onClick={() => (listening ? stopListen() : tryStartListen())}
                       disabled={!sttOk || inputLocked}
                       aria-label={listening ? "Stop listening" : "Speak"}
                     >
                       {listening ? (
-                        <span className="stop-icon" />
+                        <span className="fun-mic" aria-hidden>
+                          <i />
+                          <i />
+                          <i />
+                        </span>
                       ) : (
                         <svg viewBox="0 0 24 24" aria-hidden>
                           <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -1291,9 +1422,29 @@ export default function InterviewRoom({
                       />
                       <button
                         type="submit"
-                        className={`send-button${typed.trim() && !inputLocked ? " armed" : ""}`}
+                        className={`send-button${typed.trim() && !inputLocked ? " armed" : ""}${whisperArm ? " fun-whisper-arm" : ""}`}
+                        data-fun={whisperArm ? "whisper-send" : "send-armed"}
                         disabled={inputLocked || !typed.trim()}
-                        aria-label="Send"
+                        aria-label={whisperArm ? "Whisper send" : "Send"}
+                        onPointerDown={() => {
+                          if (whisperTimer.current) {
+                            window.clearTimeout(whisperTimer.current);
+                          }
+                          whisperTimer.current = window.setTimeout(() => {
+                            setWhisperArm(true);
+                            playFun("whisper-send");
+                          }, 420);
+                        }}
+                        onPointerUp={() => {
+                          if (whisperTimer.current) {
+                            window.clearTimeout(whisperTimer.current);
+                          }
+                        }}
+                        onPointerLeave={() => {
+                          if (whisperTimer.current) {
+                            window.clearTimeout(whisperTimer.current);
+                          }
+                        }}
                       >
                         <svg viewBox="0 0 24 24" aria-hidden>
                           <path d="M4 12h16M13 5l7 7-7 7" />

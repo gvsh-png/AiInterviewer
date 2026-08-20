@@ -20,6 +20,7 @@ import { coverJobLine } from "@/lib/cover";
 import { verdictLabel } from "@/lib/verdict";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import MessengerNav from "@/components/MessengerNav";
+import { deskClick, playFun } from "@/lib/funKit";
 
 type ContactsSidebarProps = {
   selectedId?: string;
@@ -69,10 +70,16 @@ export default function ContactsSidebar({
   const roundLabel = currentRoundLabel(campaign, assigned);
 
   return (
-    <aside className={`contacts-panel ${compact ? "compact" : ""}`}>
-      <header className="contacts-header">
+    <aside className={`contacts-panel ${compact ? "compact" : ""}`} data-fun="home-dust">
+      <header className="contacts-header fun-sheen" data-fun="header-sheen">
         <div>
-          <p className="app-kicker">PROBE</p>
+          <p
+            className="app-kicker fun-logo"
+            data-fun="logo-glitch"
+            onPointerDown={() => deskClick("desk-knock")}
+          >
+            PROBE
+          </p>
           <h1>Chats</h1>
         </div>
         <div className="header-actions">
@@ -91,11 +98,11 @@ export default function ContactsSidebar({
         </div>
       </header>
 
-      <Link href="/story" className="round-chip">
+      <Link href="/story" className="round-chip fun-chip" data-fun="chip-pulse">
         {roundLabel}
       </Link>
 
-      <label className="chat-search">
+      <label className="chat-search fun-caret" data-fun="search-caret">
         <svg viewBox="0 0 24 24" aria-hidden>
           <circle cx="10.5" cy="10.5" r="6.5" />
           <path d="m15.5 15.5 5 5" />
@@ -103,9 +110,13 @@ export default function ContactsSidebar({
         <span className="sr-only">Search chats</span>
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search"
-          type="search"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              playFun("search-clack");
+            }}
+            placeholder="Search"
+            type="search"
+            data-fun="search-clack"
         />
       </label>
 
@@ -117,7 +128,8 @@ export default function ContactsSidebar({
             <Link
               key={contact.interviewerId}
               href={`/interview/${contact.interviewerId}`}
-              className={`contact-row ${selectedId === contact.interviewerId ? "selected" : ""}`}
+              className={`contact-row fun-press ${selectedId === contact.interviewerId ? "selected" : ""}`}
+              data-fun="contact-press"
               style={
                 {
                   "--contact-accent": person.theme.sulfur,
@@ -130,8 +142,10 @@ export default function ContactsSidebar({
               <div className="contact-main">
                 <div className="contact-title-row">
                   <strong>{person.name}</strong>
-                  <time>
-                    {contact.updatedAt ? relativeTime(contact.updatedAt, now) : ""}
+                  <time data-fun="glass-remembers">
+                    {contact.updatedAt
+                      ? relativeTime(contact.updatedAt, now)
+                      : "the glass remembers"}
                   </time>
                 </div>
                 <div className="contact-preview-row">
@@ -149,7 +163,7 @@ export default function ContactsSidebar({
                         : contact.preview || coverJobLine(contact.appliedJob)}
                   </p>
                   {contact.preview && !contact.verdict ? (
-                    <span className="contact-dot" aria-label="Has conversation" />
+                    <span className="contact-dot fun-unread" aria-label="Has conversation" data-fun="unread-pulse" />
                   ) : null}
                 </div>
               </div>
@@ -158,7 +172,8 @@ export default function ContactsSidebar({
         })}
 
         {contacts.length === 0 ? (
-          <div className="empty-contacts">
+          <div className="empty-contacts" data-fun="paper-plane">
+            <div className="fun-plane" aria-hidden />
             <p>No one has messaged you yet.</p>
             <Link href="/story" className="start-chat-button">
               Continue the story

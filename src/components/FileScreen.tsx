@@ -45,6 +45,7 @@ import {
   sampleTemperature,
   temperatureLabel,
 } from "@/lib/gameplay";
+import { deskClick, getFunState, grantAward, playFun, subscribeToFunState } from "@/lib/funKit";
 
 export default function FileScreen() {
   const campaignRaw = useSyncExternalStore(
@@ -72,9 +73,15 @@ export default function FileScreen() {
     [contactsRaw]
   );
   const file = useMemo(() => parseFileSnapshot(fileRaw), [fileRaw]);
+  const toys = useSyncExternalStore(
+    subscribeToFunState,
+    getFunState,
+    getFunState
+  );
 
   useEffect(() => {
     readCampaign();
+    playFun("file-drawer");
   }, []);
 
   const done = completedContacts(contacts);
@@ -131,7 +138,7 @@ export default function FileScreen() {
   };
 
   return (
-    <main className="messenger-shell file-shell">
+    <main className="messenger-shell file-shell fun-page-curl" data-fun="file-drawer">
       <ContactsSidebar compact />
       <section className="settings-panel">
         <header className="thread-header settings-header">
@@ -166,7 +173,7 @@ export default function FileScreen() {
               Twelve slots. Each hour has a brief. Tap a finished hour to reopen
               the chat. Sign the ones you sat through.
             </p>
-            <div className="hour-grid">
+            <div className="hour-grid fun-drawers" data-fun="hour-drawers">
               {hours.map(({ index, contact }) => {
                 const person = contact
                   ? getInterviewer(contact.interviewerId)
@@ -195,7 +202,7 @@ export default function FileScreen() {
                 return (
                   <div
                     key={index}
-                    className={`hour-cell ${contact ? "filled" : ""} ${
+                    className={`hour-cell fun-card ${contact ? "filled" : ""} ${
                       isCurrent ? "current" : ""
                     } ${signed ? "signed" : ""} ${
                       contact?.hourScore?.passed
@@ -219,8 +226,13 @@ export default function FileScreen() {
                     {contact?.verdict && !signed ? (
                       <button
                         type="button"
-                        className="text-button"
-                        onClick={() => signHour(contact.interviewerId)}
+                        className={`text-button ${signed ? "" : "fun-wet"}`}
+                        data-fun="wet-ink"
+                        onClick={() => {
+                          deskClick("memo-stamp");
+                          playFun("wet-ink");
+                          signHour(contact.interviewerId);
+                        }}
                       >
                         Sign hour
                       </button>
@@ -243,7 +255,12 @@ export default function FileScreen() {
               <button
                 type="button"
                 className="start-chat-button"
-                onClick={requestBadge}
+                data-fun="badge-chime"
+                onClick={() => {
+                  deskClick("badge-chime");
+                  grantAward("badge-chime");
+                  requestBadge();
+                }}
                 disabled={!canRequestBadge}
               >
                 {canRequestBadge ? "Request a badge" : "Need three clean hours or hires"}
@@ -263,7 +280,7 @@ export default function FileScreen() {
                   const person = getInterviewer(contact.interviewerId);
                   if (!person || !contact.verdict) return null;
                   return (
-                    <article key={contact.interviewerId} className="letter-card">
+                    <article key={contact.interviewerId} className="letter-card fun-card" data-fun="card-lift">
                       <div className="letter-card-head">
                         <PersonaAvatar interviewer={person} size="sm" />
                         <div>
@@ -293,6 +310,38 @@ export default function FileScreen() {
                     </article>
                   );
                 })}
+              </div>
+            )}
+          </section>
+
+          <section className="settings-group" data-fun="stamp-album">
+            <h2>Stamp album</h2>
+            <p className="settings-description">
+              Letters leave ink. The desk keeps a small album.
+            </p>
+            <div className="fun-album">
+              {(toys.stamps.length ? toys.stamps : ["INTAKE"]).map((stamp) => (
+                <b key={stamp} className="fun-album-stamp">
+                  {stamp}
+                </b>
+              ))}
+            </div>
+          </section>
+
+          <section className="settings-group" data-fun="pin-file">
+            <h2>Clipped lines</h2>
+            {toys.pins.length === 0 ? (
+              <p className="settings-description">
+                Double-tap a line during an hour to clip it here.
+              </p>
+            ) : (
+              <div className="fun-pin-list">
+                {toys.pins.map((pin) => (
+                  <article key={pin.id} className="memo-card">
+                    <p className="app-kicker">{pin.name}</p>
+                    <p>{pin.text}</p>
+                  </article>
+                ))}
               </div>
             )}
           </section>
@@ -333,9 +382,9 @@ export default function FileScreen() {
             <p className="settings-description">
               The desk releases paper as hours close. Nothing here is a roster.
             </p>
-            <div className="memo-list">
+            <div className="memo-list" data-fun="memo-flip">
               {memos.map((memo) => (
-                <article key={memo.id} className="memo-card">
+                <article key={memo.id} className="memo-card fun-flip fun-card" data-fun="page-curl">
                   <p className="app-kicker">{memo.kicker}</p>
                   <h3>{memo.title}</h3>
                   <p>{memo.body}</p>
