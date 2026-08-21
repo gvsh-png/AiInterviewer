@@ -7,12 +7,7 @@ import {
   type ConversationMeta,
 } from "@/lib/personality";
 import { getInterviewer } from "@/lib/interviewers";
-import {
-  buildPhotoSystemGuide,
-  canSharePhoto,
-  extractPhotoTag,
-  generateInterviewerPhoto,
-} from "@/lib/imageGen";
+import { extractPhotoTag } from "@/lib/imageGen";
 import { buildCoverGuide } from "@/lib/cover";
 import {
   buildVerdictGuide,
@@ -104,9 +99,6 @@ export async function POST(req: NextRequest) {
     const therapyScore = prevTherapy + therapyDelta + softenBonus;
     const turnCount = priorTurns;
     const phase = derivePhase(turnCount, therapyScore);
-    const photoEvery = round >= 3 ? 3 : 4;
-    const photoAllowed =
-      !lastHour && canSharePhoto(turnCount, lastImageTurn, photoEvery);
     const wantsVerdict =
       mustIssueVerdict(turnCount, window.forceVerdict) ||
       (lastHour && turnCount >= window.minVerdict);
@@ -153,7 +145,7 @@ export async function POST(req: NextRequest) {
         buildCoverGuide(interviewer, appliedJob),
         buildBuildingGuide(sample, directive, appliedJob),
         buildStanceGuide(stance, appliedJob),
-        buildPhotoSystemGuide(interviewer, photoAllowed),
+        "PHOTO RULE: Do not share photos. Do not include any [[PHOTO:...]] tags. The hour uses only plates already on the desk.",
         buildVerdictGuide(turnCount, appliedJob, verdictOptions),
       ].join("\n\n")
     );
@@ -192,7 +184,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model,
           temperature: wantsVerdict ? 0.6 : 0.9,
-          max_tokens: wantsVerdict || photoAllowed ? 900 : 180,
+          max_tokens: wantsVerdict ? 900 : 180,
           messages: [
             { role: "system", content: system },
             ...messages.map((m) => ({
@@ -242,37 +234,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let image: { dataUrl: string; caption: string } | null = null;
-    let nextLastImageTurn = lastImageTurn;
-    const photoPrompt = photoParsed.photoPrompt;
-
-    if (photoAllowed && photoPrompt && !verdict) {
-      nextLastImageTurn = turnCount;
-      const generated = await generateInterviewerPhoto(
-        apiKey,
-        interviewer,
-        photoPrompt
-      );
-      if (generated) {
-        image = {
-          dataUrl: generated.dataUrl,
-          caption: "Shared photo",
-        };
-      }
-    }
-
     const closed = verdict && verdict.decision !== "callback";
 
     return NextResponse.json({
       reply,
       meta: {
         ...meta,
-        lastImageTurn: nextLastImageTurn,
+        lastImageTurn,
         callbackRound:
           callbackRound || verdict?.decision === "callback",
         verdict: closed ? verdict : undefined,
       },
-      image,
+      image: null,
       verdict,
     });
   } catch (err) {

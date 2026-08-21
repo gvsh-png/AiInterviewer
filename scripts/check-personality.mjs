@@ -10,6 +10,7 @@ import {
   pickWeightedInterviewer,
 } from "../src/lib/contacts.ts";
 import { PERSON_PATCHES } from "../src/lib/nightScore.ts";
+import { extractPhotoTag } from "../src/lib/imageGen.ts";
 import { coverOpeningLine } from "../src/lib/cover.ts";
 import {
   extractVerdict,
@@ -41,7 +42,9 @@ import {
   STILL_KINDS,
   assembleShots,
   ensureOpeningNight,
+  nightStill,
   stillPrompt,
+  stillSrc,
   stillVideo,
   validateShots,
 } from "../src/lib/cutscenes.ts";
@@ -397,6 +400,9 @@ const uniquePlate = stillPrompt({
 });
 assert.match(uniquePlate, /plate-77/);
 assert.match(uniquePlate, /different angle/i);
+assert.equal(nightStill("printers"), "file");
+assert.equal(nightStill("unknown-night"), "night");
+assert.equal(stillSrc("file"), "/stills/file.jpg");
 
 assert.ok(SHOCK_CUTS.length >= 6);
 assert.equal(
@@ -571,5 +577,26 @@ const wired = execSync("rg -l . src --glob '!funKit.ts'", { encoding: "utf8" })
 for (const id of funFeatureIds()) {
   assert.ok(wired.includes(id), `fun feature ${id} is not wired outside the catalog`);
 }
+
+assert.equal(
+  extractPhotoTag("Sit down. [[PHOTO: a wet lobby]] The hour is live.").photoPrompt,
+  null
+);
+assert.match(
+  extractPhotoTag("Sit down. [[PHOTO: a wet lobby]] The hour is live.").reply,
+  /Sit down\.\s+The hour is live\./
+);
+assert.equal(
+  /generateOpenRouterImage|generateInterviewerPhoto/.test(
+    readFileSync("src/app/api/chat/route.ts", "utf8")
+  ),
+  false
+);
+assert.equal(
+  /generateOpenRouterImage/.test(
+    readFileSync("src/app/api/story-still/route.ts", "utf8")
+  ),
+  false
+);
 
 console.log("personality + roster checks passed", INTERVIEWERS.length);
