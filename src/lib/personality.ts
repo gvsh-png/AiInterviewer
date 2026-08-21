@@ -103,7 +103,6 @@ CURRENT STATE:
 - Candidate turns so far: ${meta.turnCount}
 - Affinity / therapy score: ${meta.therapyScore}
 - Active phase: ${meta.phase}
-- Last photo shared at turn: ${meta.lastImageTurn || "never"}
 
 ${PHASE_GUIDE[meta.phase]}
 
